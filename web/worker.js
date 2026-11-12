@@ -38,19 +38,20 @@ async function boot() {
   status("loading the checker core");
   const list = await (await fetch("../core/__list.json", { cache: "no-store" })).json();
   py.FS.mkdirTree("/app/core");
-  for (const f of list.files.filter((f) => f.endsWith(".py") || f.startsWith("data/"))) {
-    const text = await (await fetch("../core/" + f, { cache: "no-store" })).text();
-    const dir = ("/app/core/" + f).split("/").slice(0, -1).join("/");
-    py.FS.mkdirTree(dir);
-    py.FS.writeFile("/app/core/" + f, text);
-  }
+  // fetched in parallel: one by one, the round trips of a static host add up to tens of seconds
+  const coreFiles = list.files.filter((f) => f.endsWith(".py") || f.startsWith("data/"));
+  const texts = await Promise.all(coreFiles.map(async (f) => (await fetch("../core/" + f, { cache: "no-cache" })).text()));
+  coreFiles.forEach((f, i) => {
+    py.FS.mkdirTree(("/app/core/" + f).split("/").slice(0, -1).join("/"));
+    py.FS.writeFile("/app/core/" + f, texts[i]);
+  });
   // rule cards: the report quotes "why it matters" and "how it is checked" from them
   try {
     const rl = await (await fetch("../rules/__list.json", { cache: "no-store" })).json();
     py.FS.mkdirTree("/app/rules");
-    for (const f of rl.files.filter((f) => f.endsWith(".md") && !f.includes("/"))) {
-      py.FS.writeFile("/app/rules/" + f, await (await fetch("../rules/" + f, { cache: "no-store" })).text());
-    }
+    const cards = rl.files.filter((f) => f.endsWith(".md") && !f.includes("/"));
+    const md = await Promise.all(cards.map(async (f) => (await fetch("../rules/" + f, { cache: "no-cache" })).text()));
+    cards.forEach((f, i) => py.FS.writeFile("/app/rules/" + f, md[i]));
   } catch (err) { /* no cards: the report falls back to the short texts in the code */ }
   py.runPython(`import sys\nif "/app" not in sys.path: sys.path.insert(0, "/app")`);
   env = JSON.parse(py.runPython(`import json\nfrom core.inventory import environment\njson.dumps(environment())`));
