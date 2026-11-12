@@ -66,7 +66,7 @@ def width_class(v):
 
 
 @check(id="metrics.family_vertical", category="F", scope="family",
-       title="Vertical metrics are identical across the family",
+       title="Vertical metrics are the same across the family",
        classification="Table values / Vertical metrics / Family consistency",
        what="UPM, hhea, OS/2 typo and win metrics, USE_TYPO_METRICS and underline are the same for every style",
        basis="Different line metrics make lines jump when styles are mixed in one paragraph.",
@@ -97,7 +97,7 @@ def family_vertical(group):
 
 
 @check(id="metrics.win_clipping", category="F", scope="file",
-       title="Windows ascent/descent cover every glyph",
+       title="Nothing is clipped on Windows",
        classification="Table values / Vertical metrics / Clipping",
        what="usWinAscent ≥ head.yMax and usWinDescent ≥ −head.yMin",
        basis="Windows clips anything drawn outside usWinAscent/usWinDescent.",
@@ -146,7 +146,7 @@ def use_typo(v):
 
 
 @check(id="metrics.x_cap_height", category="F", scope="file", applies=lambda v: v.is_sfnt or v.fmt.startswith("WOFF"),
-       title="OS/2 x-height and cap height match the glyphs",
+       title="Stated x-height and cap height match the drawing",
        classification="Table values / OS/2 / sxHeight, sCapHeight",
        what="sxHeight equals the top of x, sCapHeight the top of H (within 0.5% of UPM)",
        basis="OpenType spec, OS/2 version 2+; apps use them for small caps, superscripts and fallback sizing.",

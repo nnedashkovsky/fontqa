@@ -103,7 +103,7 @@ def notdef(v):
 
 
 @check(id="glyphs.empty_mapped", category="C", scope="outline", applies=sfnt,
-       title="Mapped characters have outlines",
+       title="Encoded characters have outlines",
        classification="Glyphs / Outlines / Empty glyphs",
        what="every encoded character except spaces and controls has an outline",
        basis="An empty glyph for a visible character prints nothing and blocks fallback to another font.",

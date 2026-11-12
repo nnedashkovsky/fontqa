@@ -45,7 +45,7 @@ def _quote(s):
 # ------------------------------------------------------------------ A
 
 @check(id="names.gdi_length", category="A", scope="file", applies=installable,
-       title="Family name reaches the Windows GDI limit",
+       title="Family name fits the Windows GDI limit",
        classification="Names / Windows family / GDI name length",
        what="name ID 1 (and, for variable fonts, family + instance name) is 30 characters or fewer",
        basis="Windows GDI LOGFONT.lfFaceName holds 32 characters including the terminating null; "
@@ -115,7 +115,7 @@ def ribbi(v):
 
 
 @check(id="names.wws", category="A", scope="file", applies=installable,
-       title="WWS family names for styles with non-weight words",
+       title="WWS names for styles with extra words",
        classification="Names / Windows family / WWS names",
        what="when ID 17 contains words other than weight, width or slope, IDs 21/22 are present "
             "and the WWS bit is clear",
@@ -161,7 +161,7 @@ def localized(v):
 
 
 @check(id="names.unique", category="A", scope="package",
-       title="Names are unique across the installable fonts",
+       title="Names are unique across the delivery",
        classification="Names / Uniqueness / Duplicate names",
        what="within each format (OTF, TTF), no two fonts share ID 1 + ID 2, ID 16 + ID 17, ID 4, ID 6 or ID 3",
        basis="Operating systems identify installed fonts by these names; duplicates replace each other "
@@ -247,7 +247,7 @@ def postscript(v):
 
 
 @check(id="names.full_name", category="F", scope="file", applies=installable,
-       title="Full name length",
+       title="Full name is not too long",
        classification="Names / Full name / Length",
        what="ID 4 is at most 63 characters", basis="Older Mac and Office code truncates full names past 63 characters.",
        fix="Shorten ID 4.", severity="low")
@@ -259,7 +259,7 @@ def full_name(v):
 
 
 @check(id="names.version", category="F", scope="file",
-       title="Version string matches head.fontRevision",
+       title="Version string matches the font revision",
        classification="Names / Version / ID 5 vs head",
        what="ID 5 starts with 'Version X.YYY' equal to head.fontRevision",
        basis="OpenType spec, name ID 5; installers compare head.fontRevision, people read ID 5.",
@@ -277,7 +277,7 @@ def version(v):
 
 
 @check(id="names.mac_mirror", category="F", scope="file", applies=installable,
-       title="Macintosh name records mirror Windows",
+       title="Macintosh name records match the Windows ones",
        classification="Names / Platform records / Mac vs Windows",
        what="where Mac (1,0,0) records exist, IDs 1, 2, 4, 6, 16, 17 equal the Windows English ones",
        basis="Old Mac apps read the Mac records; mismatches show different names on different platforms.",

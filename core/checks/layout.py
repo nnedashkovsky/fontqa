@@ -100,7 +100,7 @@ def scripts(v):
 
 
 @check(id="layout.unreachable", category="D", scope="outline", applies=sfnt,
-       title="Every glyph is reachable",
+       title="Every glyph can be reached",
        classification="OpenType layout / Glyph access / Unreachable glyphs",
        what="every glyph can be reached from the cmap through some feature (including aalt) or as a component",
        basis="A glyph no feature produces cannot be typed; usually a missing feature for a suffix (.ss01, .sc, .tf).",

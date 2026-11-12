@@ -192,7 +192,7 @@ def extrema(v):
 
 
 @check(id="outline.fractional", category="C", scope="outline", applies=lambda v: v.facts.get("outline") in ("CFF", "CFF2"),
-       title="Integer coordinates in CFF outlines",
+       title="Whole-unit coordinates in CFF outlines",
        classification="Outlines / Hygiene / Fractional coordinates",
        what="CFF charstrings contain only whole-unit coordinates",
        basis="Fractional points come from scaling or interpolation and round differently per app; "
