@@ -25,9 +25,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 RULES_DIR = os.path.normpath(os.path.join(HERE, "..", "rules"))
 REPO_EDIT = "https://github.com/nnedashkovsky/fontqa/edit/main/rules/"
 RULES_URL = "https://nnedashkovsky.github.io/fontqa/rules/"
-# from which level of detail a section shows (core/levels.py)
-SECTION_LEVEL = {"What it checks": 1, "Why it matters": 1, "How to fix": 1, "When it does not apply": 2,
-                 "Example": 2, "How it is checked": 3}
+# card sections only an engineer sees (core/levels.py)
+ENGINEER_SECTIONS = {"How it is checked"}
 SECTIONS = ("What it checks", "Why it matters", "How it is checked", "When it does not apply", "How to fix")
 LIST_KEYS = ("sources",)
 
@@ -104,6 +103,8 @@ def validate(cards, registry):
         if not c:
             errors.append(f"{card['file']}: no check with id {cid}")
             continue
+        if card.get("level") and card["level"] != c.level:
+            errors.append(f"{cid}: level is {card['level']!r} in the card, {c.level!r} in the code")
         for k in ("category", "severity", "action"):
             if str(card.get(k)) != str(getattr(c, k)):
                 errors.append(f"{cid}: {k} is {card.get(k)!r} in the card, {getattr(c, k)!r} in the code")
@@ -192,8 +193,7 @@ def by_level(body):
     out = []
     for m in re.finditer(r"^## (.+?)\s*$(.*?)(?=^## |\Z)", body, re.M | re.S):
         name, text = m.group(1).strip(), m.group(2)
-        lvl = SECTION_LEVEL.get(name, 2)
-        out.append(f'<div class="sec{"" if lvl == 1 else f" l{lvl}"}">' + markdown("## " + name + "\n" + text) + "</div>")
+        out.append(f'<div class="sec{" l3" if name in ENGINEER_SECTIONS else ""}">' + markdown("## " + name + "\n" + text) + "</div>")
     return "\n".join(out)
 
 
@@ -214,14 +214,15 @@ def render_page(cards, registry, tool_url="../web/"):
         for c in group:
             card = cards.get(c.id)
             title = card.get("title") if card else c.title
-            nav.append(f'<a href="#{e(c.id)}" class="{"" if card else "draft"}">{e(title)}</a>')
+            cls = " ".join(x for x in ("" if card else "draft", "l3" if c.level == "engineer" else "") if x)
+            nav.append(f'<a href="#{e(c.id)}" class="{cls}">{e(title)}</a>')
             body.append(_rule(c, card, checks))
     head = levels.head(REPORT_HEAD.replace("{{title}} — inspection", "Rules — Font QA").replace("</head>", EXTRA_CSS + "</head>"))
     done = sum(1 for c in checks if c in cards)
     return (head + f"""<div class="wrap">
 <header><div><div class="kicker">Font QA</div><h1>Rules</h1>
-<div class="sub">{len(checks)} checks · {done} explained in full · <a href="{e(tool_url)}">open the tool</a></div></div>
-<div class="ctl">{levels.SWITCH}<button class="theme" id="theme">auto</button></div></header>{levels.panel("rules")}
+<div class="sub">{len(checks)} checks · {sum(1 for c in checks.values() if c.level == "designer")} at the Designer level · {done} explained in full · <a href="{e(tool_url)}">open the tool</a></div></div>
+<div class="ctl">{levels.SWITCH}<button class="theme" id="theme">auto</button></div></header>{levels.panel()}
 <div class="filters"><input id="q" type="search" placeholder="Search rules: name ID 1, fsSelection, Word…"></div>
 <div class="layout"><nav>{''.join(nav)}</nav><main>{''.join(body)}</main></div>
 </div>""" + PAGE_SCRIPT + levels.SCRIPT + "</body></html>")
@@ -231,30 +232,32 @@ def _badges(c):
     from .report_html import ACTION_LABEL
     return (f'<span class="tag {c.action}">{ACTION_LABEL.get(c.action, c.action)}</span>'
             f'<span class="tag sev-{c.severity}">{c.severity}</span>'
+            f'<span class="tag lv">{"Designer + Engineer" if c.level == "designer" else "Engineer"}</span>'
             f'<span class="cls">{c.category} · {c.scope}</span>')
 
 
 def _rule(c, card, checks):
     e = html.escape
     rid = e(c.id)
+    lvl = " l3" if c.level == "engineer" else ""
     if not card:
         sym = "".join(f"<li>{e(s)}</li>" for s in c.symptoms)
-        return f"""<article class="rule draft" id="{rid}" data-search="{e((c.id + ' ' + c.title + ' ' + c.what + ' ' + c.basis).lower())}">
+        return f"""<article class="rule draft{lvl}" id="{rid}" data-search="{e((c.id + ' ' + c.title + ' ' + c.what + ' ' + c.basis).lower())}">
 <div class="ih"><code>{rid}</code>{_badges(c)}<span class="cls">short description, full card not written yet</span></div>
 <h3>{e(c.title)}</h3><p class="lead">{e(c.what[:1].upper() + c.what[1:])}.</p>
-<p><b>Why:</b> {e(c.basis)}</p><p class="l2"><b>Fix:</b> {e(c.fix)}</p>{f'<p><b>Users may see:</b></p><ul>{sym}</ul>' if sym else ''}
+<p><b>Why:</b> {e(c.basis)}</p><p><b>Fix:</b> {e(c.fix)}</p>{f'<p><b>Users may see:</b></p><ul>{sym}</ul>' if sym else ''}
 </article>"""
     srcs = "".join(f'<li><a href="{e(u)}">{e(t)}</a></li>' if u else f"<li>{e(t)}</li>" for t, u in card["sources"])
     rel = " ".join(f'<a href="#{e(r)}"><code>{e(r)}</code></a>' for r in card.get("related") or [] if r in checks)
     text = " ".join([c.id, card.get("title", ""), card.get("summary", ""), card["body"]]).lower()
-    return f"""<article class="rule" id="{rid}" data-search="{e(text)}">
+    return f"""<article class="rule{lvl}" id="{rid}" data-search="{e(text)}">
 <div class="ih"><code>{rid}</code>{_badges(c)}<a class="edit" href="{REPO_EDIT}{e(card['file'])}">Edit this rule</a></div>
 <h3>{e(card.get('title', c.title))}</h3>
 <p class="lead">{_inline(card.get('summary', ''))}</p>
-<p class="applies l2"><b>Applies to:</b> {_inline(card.get('applies', ''))}</p>
+<p class="applies"><b>Applies to:</b> {_inline(card.get('applies', ''))}</p>
 <div class="md">{by_level(card['body'])}</div>
 {f'<div class="l3"><h4>Sources</h4><ul class="src">{srcs}</ul></div>' if srcs else ''}
-{f'<p class="rel l2"><b>Related:</b> {rel}</p>' if rel else ''}
+{f'<p class="rel"><b>Related:</b> {rel}</p>' if rel else ''}
 </article>"""
 
 
@@ -279,6 +282,7 @@ h2.cat{margin:30px 0 12px}h2.cat:first-child{margin-top:0}
 .tw th{text-align:left;font-size:11px;font-weight:600;color:var(--muted);padding:6px 12px 6px 0;border-bottom:1px solid var(--line)}
 .tw td{font-size:13px;padding:6px 12px 6px 0;border-top:1px solid var(--line);vertical-align:top}
 .ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tag.lv{border:1px solid var(--line-2);color:var(--muted);font-family:var(--mono)}
 .edit{margin-left:auto;font-family:var(--sans);font-size:12px}
 code{font-size:12px;word-break:normal}
 @media (max-width:860px){.layout{grid-template-columns:1fr}nav{display:none}.rule{padding:14px 16px}}
@@ -292,9 +296,12 @@ PAGE_SCRIPT = """<script>
   apply(t);
   document.getElementById("theme").onclick=function(){t=THEMES[(THEMES.indexOf(t)+1)%3];apply(t);try{localStorage.setItem("fontqa:theme",t)}catch(e){}};
   var q=document.getElementById("q");
-  q.oninput=function(){var s=q.value.toLowerCase().trim();
+  function filter(){var s=q.value.toLowerCase().trim();
     document.querySelectorAll(".rule").forEach(function(el){el.hidden=s&&el.dataset.search.indexOf(s)<0});
-    document.querySelectorAll("h2.cat").forEach(function(h){var n=h.nextElementSibling,any=false;
-      while(n&&!n.matches("h2.cat")){if(!n.hidden)any=true;n=n.nextElementSibling}h.hidden=!any});};
+    document.querySelectorAll("h2.cat").forEach(function(h){var n=h.nextElementSibling,any=false;h.hidden=false;
+      while(n&&!n.matches("h2.cat")){if(!n.hidden&&getComputedStyle(n).display!=="none")any=true;n=n.nextElementSibling}h.hidden=!any});
+    document.querySelectorAll(".ncat").forEach(function(h){var n=h.nextElementSibling,any=false;
+      while(n&&!n.matches(".ncat")){if(getComputedStyle(n).display!=="none")any=true;n=n.nextElementSibling}h.style.display=any?"":"none"});}
+  q.oninput=filter;window.onLevel=filter;filter();
 })();
 </script>"""

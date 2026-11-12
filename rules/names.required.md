@@ -3,6 +3,7 @@ id: names.required
 title: Required name records are present
 summary: Name IDs 1 to 6 exist in the Windows English records.
 category: F
+level: engineer
 severity: high
 action: fix
 applies: Installable fonts (OTF, TTF outside a Web folder).

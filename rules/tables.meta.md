@@ -3,6 +3,7 @@ id: tables.meta
 title: Design and supported languages (meta table)
 summary: A font whose main script is not Latin has a meta table that lists its design and supported languages (dlng, slng).
 category: A
+level: engineer
 severity: low
 action: fix
 applies: Installable fonts whose main script is Chinese, Japanese, Korean, Arabic, Cyrillic, Greek, Hebrew, Thai or Devanagari.

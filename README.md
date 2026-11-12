@@ -23,9 +23,14 @@ A dropped folder keeps its structure, so App / Desktop / Web lines of the same f
   - `proofs.html` — waterfall, spacing and kerning strings;
   - `menus.html` — how the fonts will appear in Windows (GDI, WWS) and macOS / Font Book menus, predicted from the tables, and a checklist for checking it on a real system.
 
-### Levels of detail
+### Levels
 
-The report and the Rules page have a switch: **Beginner** (what is wrong, why it matters, what to do), **Designer** (the default: plus measured and expected values, files, glyphs and the summary tables) and **Engineer** (plus how each check measures, check ids, the fonts table and the inputs). `report.html?level=beginner` opens a report at a given level.
+Choose a level before the run:
+
+- **Designer** — what concerns the drawing: character set and languages, outlines, metrics and kerning, OpenType features, family tests (20 checks).
+- **Engineer** — everything, including what concerns the file: font tables and names, validators (OTS, Font Bakery), lineages, variable-font tables, release readiness and the menu simulation (all 55 checks). The report also shows how each check measures.
+
+In the terminal: `./check.sh inspect … --level designer` (the default is `engineer`). The Rules page switches between the two levels.
 
 ### Rules
 

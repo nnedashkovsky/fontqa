@@ -16,7 +16,7 @@ import inspect as pyinspect  # stdlib; this module is core.inspection
 from collections import Counter, defaultdict
 
 from . import VERSION, inventory, rules
-from .checks import CATEGORIES, REGISTRY, families, load_all
+from .checks import CATEGORIES, REGISTRY, families, in_level, load_all
 from .checks.charset import coverage
 from .fontview import FontView, assign_outline_keys
 
@@ -27,10 +27,11 @@ CELL = {"fix": "×", "confirm": "△", "ok": "○", "pass": "○", "n/a": "—",
 
 
 def run(paths, profile="release", ots=None, fontbakery=None, font_json=None, facts=None,
-        progress=None, today=None, only=None):
+        progress=None, today=None, only=None, level="engineer"):
     """Inspect (abs path, relpath) pairs; returns the issues.json dict.
 
     `only` is a list of check-id prefixes ("vf.", "names.gdi_length") to run a subset.
+    `level` is "designer" (the drawing checks) or "engineer" (everything); see core/levels.py.
     """
     load_all()
     facts = facts or inventory.facts_for(paths)
@@ -41,7 +42,12 @@ def run(paths, profile="release", ots=None, fontbakery=None, font_json=None, fac
     for v in views:
         v.ctx_ots = (ots or {}).get(v.rel)
 
-    checks = [c for c in REGISTRY if profile in c.profiles
+    if level not in ("designer", "engineer"):
+        raise ValueError(f"unknown level {level!r}")
+    if level == "designer":
+        fontbakery = font_json = None  # file-level inputs; their checks do not run
+        ctx = {"fontbakery": None, "font_json": None, "ots": ots}
+    checks = [c for c in REGISTRY if profile in c.profiles and in_level(c, level)
               and (not only or any(c.id.startswith(p) for p in only))]
     status = defaultdict(dict)
     hits, errors = [], []
@@ -141,12 +147,16 @@ def run(paths, profile="release", ots=None, fontbakery=None, font_json=None, fac
                 status[c.id].setdefault(v.rel, "n/a")
 
     issues, symptoms = _aggregate(hits, today)
-    menus, symptoms = _menus(views, issues, symptoms)
+    if level == "engineer":
+        menus, symptoms = _menus(views, issues, symptoms)
+    else:  # the menu simulation reads names and tables: an engineer's view
+        menus = None
     result = {
         "schema": "fontqa/issues 1",
         "title": _title(views),
         "date": today or datetime.date.today().isoformat(),
         "profile": profile,
+        "level": level,
         "environment": inventory.environment(),
         "options": {"fontbakery": bool(fontbakery), "ots": "provided" if ots else None,
                     "font_json": bool(font_json)},

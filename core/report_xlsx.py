@@ -60,6 +60,7 @@ def render(r):
     ws.append(["Inspection report", r["title"]])
     ws["A1"].font = Font(bold=True, size=14, color=ACCENT)
     for k, v in [("Date", r["date"]), ("Profile", r["profile"]),
+                 ("Level", {"designer": "Designer: the drawing checks", "engineer": "Engineer: all checks"}.get(r.get("level") or "engineer")),
                  ("Tool", f"Font QA core {r['environment']['core']} · {r['environment']['env']} · fontTools {r['environment']['fontTools']}"),
                  ("Files", f"{r['inventory']['files']} ({', '.join(f'{k} {v}' for k, v in r['inventory']['formats'].items())})"),
                  ("Font Bakery", "universal profile" if r["options"].get("fontbakery") else "not performed"),

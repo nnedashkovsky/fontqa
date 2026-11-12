@@ -3,6 +3,7 @@ id: names.ribbi
 title: Style linking (RIBBI) and style bits
 summary: Name ID 2 is one of Regular, Italic, Bold, Bold Italic; other styles carry IDs 16/17; the style bits agree with ID 2.
 category: A
+level: engineer
 severity: medium
 action: fix
 applies: Installable fonts (OTF, TTF outside a Web folder).

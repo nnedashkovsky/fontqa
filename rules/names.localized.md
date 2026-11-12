@@ -3,6 +3,7 @@ id: names.localized
 title: Localized name records are complete
 summary: Every Windows language that has its own IDs 1/2 also has IDs 16/17, when English has them.
 category: A
+level: engineer
 severity: high
 action: fix
 applies: Installable fonts (OTF, TTF outside a Web folder).

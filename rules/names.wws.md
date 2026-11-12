@@ -3,6 +3,7 @@ id: names.wws
 title: WWS names for styles with extra words
 summary: When the style name has words other than weight, width and slope (Display, Text, Dark…), IDs 21/22 are present and the WWS bit is off.
 category: A
+level: engineer
 severity: low
 action: fix
 applies: Installable fonts (OTF, TTF outside a Web folder).

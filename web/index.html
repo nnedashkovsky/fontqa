@@ -186,10 +186,11 @@ table.diff td{border-top:1px solid var(--line);padding:3px 4px;vertical-align:to
   </div>
   <div class="progress" id="progress" hidden><div class="bar"><i></i></div><span></span></div>
   <div class="card insp" id="insp" hidden>
-    <div class="lbl">Inspection · profile release</div>
-    <div class="opts">
+    <div class="lbl">Inspection · choose what to check</div>
+    <div id="lv-pick"></div>
+    <div class="opts" id="eng-opts">
       <label><input type="checkbox" id="opt-fb"> Include Font Bakery <span class="muted">(slow: about 10 s per OTF/TTF)</span></label>
-      <span class="drop small inline" id="drop-fj">Drop <code>design/font.json</code> to check promo facts</span>
+      <span class="drop small inline" id="drop-fj">Drop a <code>font.json</code> of promo facts to compare</span>
     </div>
     <div class="insp-run"><button class="btn primary" id="run-insp">Run inspection</button><span id="insp-state" class="muted"></span></div>
     <div id="insp-result"></div>
@@ -294,6 +295,7 @@ worker.onmessage = (e) => {
     state.env = m.env;
     state.readyLine = `<b>ready</b> · core ${m.env.core} · Pyodide ${m.env.pyodide} · Python ${m.env.python} · fontTools ${m.env.fontTools} · HarfBuzz ${m.env.harfbuzz} · started in ${(m.env.boot_ms / 1000).toFixed(1)} s`;
     engine(state.readyLine, false, true);
+    setupLevels(m.env.levels);
     markReady();
     return;
   }
@@ -486,8 +488,29 @@ $("#tp-rows").addEventListener("change", (e) => {
 
 /* ---------- inspection ---------- */
 state.fontJson = null;
+// Designer: the drawing checks; Engineer: everything (core/levels.py draws the cards)
+state.level = "designer";
+try { state.level = localStorage.getItem("fontqa:level") || state.level; } catch (e) {}
+if (state.level !== "designer" && state.level !== "engineer") state.level = "designer";
+function setupLevels(lv) {
+  if (!lv || $("#lv-pick").childElementCount) return;
+  document.head.insertAdjacentHTML("beforeend", lv.css);
+  $("#lv-pick").innerHTML = lv.panel;
+  const mark = () => {
+    $("#lv-pick").querySelectorAll(".lvcard").forEach((b) => b.classList.toggle("on", b.dataset.level === state.level));
+    $("#eng-opts").hidden = state.level !== "engineer";  // Font Bakery and font.json feed file-level checks
+  };
+  $("#lv-pick").onclick = (e) => {
+    const b = e.target.closest(".lvcard");
+    if (!b) return;
+    state.level = b.dataset.level;
+    try { localStorage.setItem("fontqa:level", state.level); } catch (err) {}
+    mark();
+  };
+  mark();
+}
 async function runInspection(opts = {}) {
-  const fontbakery = opts.fontbakery ?? $("#opt-fb").checked;
+  const fontbakery = (opts.level ?? state.level) === "engineer" && (opts.fontbakery ?? $("#opt-fb").checked);
   const btn = $("#run-insp");
   btn.disabled = true;
   $("#insp-state").textContent = "running…";
@@ -504,6 +527,7 @@ async function runInspection(opts = {}) {
       refs: state.refs.filter((f) => f.custom).map((f) => f.path),
       attachments: opts.attachments ?? true,
       profile: opts.profile,
+      level: opts.level ?? state.level,
     });
     progress(0, 0);
     state.results.issues = out.issues;
@@ -531,7 +555,7 @@ function renderInspection(out) {
       <span><b class="confirm">${s.by_action.confirm}</b> confirm</span>
       <span><b>${s.by_action.ok}</b> harmless</span>
       <span><b>${s.symptoms}</b> predicted symptoms</span>
-      <span class="muted">${r.checks.length} checks · ${r.inventory.files} files${r.errors.length ? ` · <span style="color:var(--warn)">${r.errors.length} check errors</span>` : ""}</span>
+      <span class="muted">${r.level === "designer" ? "Designer" : "Engineer"} level · ${r.checks.length} checks · ${r.inventory.files} files${r.errors.length ? ` · <span style="color:var(--warn)">${r.errors.length} check errors</span>` : ""}</span>
     </div>
     <div class="insp-dl">
       <button class="btn primary" data-get="open">Open report</button>

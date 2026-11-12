@@ -1,9 +1,9 @@
-"""Release readiness for the studio's own fonts (category R, profile "release").
+"""Release readiness (category R, profile "release").
 
 What stores reject or customers stumble over:
 names that do not match between family, styles and files; missing formats;
-missing copyright or license information; a promo font.json whose numbers no
-longer describe the font (P-001: banner facts come only from font.json).
+missing copyright or license information; a font.json of promo facts whose
+numbers no longer describe the font.
 """
 
 import os
@@ -98,9 +98,9 @@ def version(group):
        title="Promo facts (font.json) describe this build",
        classification="Release / Promo / font.json facts",
        what="glyph and character counts, features and PostScript names in design/font.json match the fonts",
-       basis="P-001: every number on banners and in store texts comes from font.json; it must describe "
-             "the build that is sold.",
-       fix="Re-run tools/promo/font_facts.py on the new build.", severity="medium", requires=("font_json",))
+       basis="Optional: if you keep the numbers for banners and store texts in a font.json file, they must "
+             "describe the build that is sold. Runs only when a font.json is given.",
+       fix="Regenerate font.json from the new build.", severity="medium", requires=("font_json",))
 def font_json(views, ctx=None):
     data = (ctx or {}).get("font_json")
     if not data:

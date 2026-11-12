@@ -3,6 +3,7 @@ id: names.gdi_length
 title: Family name fits the Windows GDI limit
 summary: The Windows family name (name ID 1) is 30 characters or fewer — for variable fonts, family plus instance name too.
 category: A
+level: engineer
 severity: high
 action: fix
 applies: Installable fonts (OTF, TTF outside a Web folder).

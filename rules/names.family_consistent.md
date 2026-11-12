@@ -3,6 +3,7 @@ id: names.family_consistent
 title: Family-wide name fields agree
 summary: Within one family and line, the family name, version, vendor, copyright, trademark, manufacturer, designer, license and URLs are the same in every style.
 category: F
+level: engineer
 severity: medium
 action: fix
 applies: Each family, per line (App, Desktop, Web) and separately for static and variable fonts.

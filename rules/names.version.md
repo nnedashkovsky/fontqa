@@ -3,6 +3,7 @@ id: names.version
 title: Version string matches the font revision
 summary: Name ID 5 starts with "Version X.YYY", and that number equals head.fontRevision.
 category: F
+level: engineer
 severity: low
 action: fix
 applies: All fonts, web fonts included.

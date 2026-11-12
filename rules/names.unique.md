@@ -3,6 +3,7 @@ id: names.unique
 title: Names are unique across the delivery
 summary: No two installable fonts of the same format share a family + style, full name, PostScript name or unique ID.
 category: A
+level: engineer
 severity: high
 action: fix
 applies: All installable fonts of the delivery together, OTF and TTF separately.

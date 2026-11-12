@@ -3,6 +3,7 @@ id: names.mac_mirror
 title: Macintosh name records match the Windows ones
 summary: Where the font has Mac platform name records, IDs 1, 2, 4, 6, 16 and 17 equal the Windows English ones.
 category: F
+level: engineer
 severity: low
 action: confirm
 applies: Installable fonts that carry Mac (platform 1) name records.

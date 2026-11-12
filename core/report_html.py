@@ -45,19 +45,23 @@ def render(r, extra="", attachments=()):
     s = r["summary"]
     issues = r["issues"]
     cats = r["categories"]
-    parts = [levels.head(HEAD.replace("{{title}}", e(r["title"] or "Inspection")))]
+    level = r.get("level") or "engineer"
+    parts = [levels.head(HEAD.replace("{{title}}", e(r["title"] or "Inspection")), level)]
     parts.append(f"""<div class="wrap">
 <header>
   <div><div class="kicker">Inspection report</div><h1>{e(r['title'] or 'Fonts')}</h1>
-  <div class="sub">{e(r['date'])} · profile {e(r['profile'])} · {r['inventory']['files']} files · Font QA core {e(r['environment']['core'])}</div></div>
+  <div class="sub">{e(r['date'])} · {e(levels.name(level))} level · {r['inventory']['files']} files · Font QA core {e(r['environment']['core'])}</div></div>
   <div class="tally">
     <div><div class="v fix">{s['by_action']['fix']}</div><div class="k">fix</div></div>
     <div><div class="v confirm">{s['by_action']['confirm']}</div><div class="k">confirm</div></div>
     <div><div class="v">{s['by_action']['ok']}</div><div class="k">harmless</div></div>
     <div><div class="v">{s['symptoms']}</div><div class="k">predicted symptoms</div></div>
-    <div class="ctl">{levels.SWITCH}<button class="theme" id="theme">auto</button></div>
+    <div class="ctl"><button class="theme" id="theme">auto</button></div>
   </div>
-</header>""" + levels.panel("report"))
+</header>""" + levels.panel(level, interactive=False) + (
+        '<p class="lvnote">Made at the Designer level: the drawing checks. File-level checks — names, tables, '
+        'validators, lineages, release, menus — were not run; run again at the Engineer level for them.</p>'
+        if level == "designer" else ""))
 
     # ---- scope
     inv = r["inventory"]
@@ -71,6 +75,8 @@ def render(r, extra="", attachments=()):
         ("Font Bakery", "universal profile" if opts.get("fontbakery") else "not performed"),
         ("Promo facts", "design/font.json compared" if opts.get("font_json") else "no font.json given"),
     ]
+    if level == "designer":  # Font Bakery and font.json feed engineer checks only
+        performed = performed[:2]
     parts.append(f"""<section><h2>Scope</h2>
 <div class="grid2">
 <table class="kv"><tr><th>Files</th><td>{e(kv(inv['formats']))}<br>{e(_lineages(inv['lineages']))}</td></tr>
@@ -81,7 +87,7 @@ def render(r, extra="", attachments=()):
 {f'<p class="note">Not performed (input not given): {e(", ".join(s["not_performed"]))}.</p>' if s['not_performed'] else ''}
 {f'<p class="muted">Not applicable to these files: {e(", ".join(s["not_applicable"]))}.</p>' if s.get('not_applicable') else ''}
 {''.join(f'<p class="note">Check error — {e(x["check"])}: {e(x["error"])}</p>' for x in r['errors'])}
-<p class="muted l2">Each issue lists expected and measured values, the basis for comparison, the files and glyphs concerned, and a suggested fix direction. The report states facts about the received files; it does not judge design intent.</p>
+<p class="muted">Each issue lists expected and measured values, the basis for comparison, the files and glyphs concerned, and a suggested fix direction. The report states facts about the received files; it does not judge design intent.</p>
 </section>""")
 
     # ---- legend
@@ -100,7 +106,7 @@ def render(r, extra="", attachments=()):
         rows.append(f"""<tr><td><b>{e(cat)}</b> {e(name)}</td><td class="n fix">{b['fix'] or ''}</td><td class="n confirm">{b['confirm'] or ''}</td>
 <td class="n">{b['ok'] or ''}</td><td class="n">{b['symptoms'] or ''}</td><td class="n muted">{b['checks']}</td>
 <td class="ok-list">{e('; '.join(confirmed)) if confirmed else '<span class="muted">—</span>'}</td></tr>""")
-    parts.append(f"""<section class="l2"><h2>Summary of results</h2>
+    parts.append(f"""<section><h2>Summary of results</h2>
 <div class="scroll"><table class="matrix"><tr><th>Category</th><th>Fix</th><th>Confirm</th><th>Harmless</th><th>Symptoms</th><th>Checks</th><th>Confirmed normal</th></tr>
 {''.join(rows)}</table></div></section>""")
 
@@ -108,16 +114,13 @@ def render(r, extra="", attachments=()):
     filt = "".join(f'<button data-f="action:{a}">{ACTION_LABEL[a]}</button>' for a in ("fix", "confirm", "ok"))
     filt += "".join(f'<button data-f="severity:{x}">{x.title()}</button>' for x in ("high", "medium", "low"))
     filt += "".join(f'<button data-f="category:{c}">{c}</button>' for c in cats if s["by_category"][c]["checks"])
-    n_ok = sum(1 for i in issues if i["action"] == "ok")
-    hidden_note = (f'<p class="muted l1-only">{n_ok} harmless difference{"s" if n_ok != 1 else ""} hidden at this level; '
-                   f'switch to Designer to see {"them" if n_ok != 1 else "it"}.</p>') if n_ok else ""
     parts.append(f"""<section><h2>Issues <span class="count">{len(issues)}</span></h2>
-<div class="filters"><span class="l2 fb">{filt}</span><input id="q" type="search" placeholder="Search issues, files, glyphs"></div>
-{hidden_note}<div id="issues">{''.join(_card(i, r) for i in issues) or '<p class="muted">No issues.</p>'}</div></section>""")
+<div class="filters">{filt}<input id="q" type="search" placeholder="Search issues, files, glyphs"></div>
+<div id="issues">{''.join(_card(i, r) for i in issues) or '<p class="muted">No issues.</p>'}</div></section>""")
 
     # ---- symptoms
     if r["symptoms"]:
-        parts.append("""<section class="l2"><h2>Predicted symptoms</h2><p class="muted">What users would see, derived from the parent issue.
+        parts.append("""<section><h2>Predicted symptoms</h2><p class="muted">What users would see, derived from the parent issue.
 Status "predicted" means not yet observed in the environment; confirm with screenshots.</p><div class="scroll"><table class="data">
 <tr><th>No.</th><th>Environment</th><th>Symptom</th><th>Parent</th><th>Status</th></tr>""" + "".join(
             f"<tr><td>{e(x['id'])}</td><td>{e(x['environment'])}</td><td>{e(x['symptom'])}</td>"
@@ -137,7 +140,7 @@ Status "predicted" means not yet observed in the environment; confirm with scree
                 cells += f"<td class='n {'okc' if full else ''}'>{'✓' if full else f'{have}/{total}'}</td>"
             nxt = f"<details><summary>{len(c['missing_for_next'])} to {e(c['next_level'])}</summary><code>{e(' '.join(c['missing_for_next']))}</code></details>" if c["next_level"] else "complete"
             body += f"<tr><td>{e(c['family'])} <b>{e(c['style'])}</b></td>{cells}<td>{nxt}</td></tr>"
-        parts.append(f"""<section class="l2"><h2>Character set coverage</h2><div class="scroll"><table class="data"><tr><th>Style</th>{head}<th>Next level</th></tr>{body}</table></div></section>""")
+        parts.append(f"""<section><h2>Character set coverage</h2><div class="scroll"><table class="data"><tr><th>Style</th>{head}<th>Next level</th></tr>{body}</table></div></section>""")
 
     # ---- fonts table
     fields = r["fonts"]["fields"]
@@ -156,14 +159,14 @@ Status "predicted" means not yet observed in the environment; confirm with scree
     # ---- inputs
     trs = "".join(f"<tr><td class='path'>{e(x['path'])}</td><td>{e(x['lineage'] or '—')} {e(x['format'])}</td><td class='n'>{x['size']:,}</td><td><code>{e(x['sha256'][:16])}…</code></td></tr>" for x in r["inputs"])
     if attachments:
-        parts.append("<section class='l2'><h2>Attachments</h2><p>" + " · ".join(
+        parts.append("<section><h2>Attachments</h2><p>" + " · ".join(
             f"<a href='{e(a)}'>{e(a)}</a>" for a in attachments) + "</p><p class='muted'>Material without judgements, "
             "glyph comparison with the references, the GSUB listing, proofs. Each prints to PDF.</p></section>")
     parts.append(extra)
     parts.append(f"""<section><h2 class="l3">Inputs</h2><details class="l3"><summary>{len(r['inputs'])} files with SHA-256</summary><div class="scroll"><table class="data">
 <tr><th>File</th><th>Lineage</th><th>Bytes</th><th>SHA-256</th></tr>{trs}</table></div></details>
 <p class="muted foot">Generated by Font QA core {e(VERSION)} on {e(r['date'])} · issues.json is the source of this page and of report.xlsx.</p></section></div>""")
-    parts.append(SCRIPT + levels.SCRIPT)
+    parts.append(SCRIPT)
     return "".join(parts)
 
 
@@ -183,7 +186,7 @@ def _card(i, r):
     if glyphs:
         shown = "".join(f"<span class='g'>{e(g)}</span>" for g in glyphs[:40])
         more = "".join(f"<span class='g'>{e(g)}</span>" for g in glyphs[40:])
-        gl = f"<tr class='l2'><th>Glyphs</th><td><div class='gs'>{shown}</div>" + (
+        gl = f"<tr><th>Glyphs</th><td><div class='gs'>{shown}</div>" + (
             f"<details><summary>{i['glyph_count'] - 40} more</summary><div class='gs'>{more}</div></details>" if more else "") + "</td></tr>"
     measured = e(i["measured"])
     if by_file:
@@ -195,16 +198,16 @@ def _card(i, r):
     why = (f"<tr><th>Why it matters</th><td><div class='md'>{markdown(rule['why'])}</div></td></tr>" if rule.get("why")
            else f"<tr><th>Why it matters</th><td>{e(i['basis'])}</td></tr>")
     how = f"<tr class='l3'><th>How it is checked</th><td><div class='md'>{markdown(rule['how'])}</div></td></tr>" if rule.get("how") else ""
-    basis = f"<tr class='l2'><th>Basis</th><td>{e(i['basis'])}</td></tr>" if rule.get("why") else ""
+    basis = f"<tr><th>Basis</th><td>{e(i['basis'])}</td></tr>" if rule.get("why") else ""
     search = " ".join([i["id"], i["summary"], i["check"], i["classification"], " ".join(files), " ".join(glyphs[:200])]).lower()
-    return f"""<article class="issue a-{i['action']}{' l2' if i['action'] == 'ok' else ''}" id="{e(i['id'])}" data-action="{i['action']}" data-severity="{i['severity']}" data-category="{i['category']}" data-search="{e(search)}">
-<div class="ih"><span class="no">{e(i['id'])}</span><span class="tag {i['action']}">{ACTION_LABEL[i['action']]}</span><span class="tag sev-{i['severity']}">{i['severity'].title()}</span><span class="j l2">{e(i['judgment'])}</span><span class="cls l3">{e(i['category'])} · {e(i['classification'])} · <a href="{RULES_URL}#{e(i['check'])}"><code>{e(i['check'])}</code></a></span><a class="rl" href="{RULES_URL}#{e(i['check'])}">rule</a></div>
+    return f"""<article class="issue a-{i['action']}" id="{e(i['id'])}" data-action="{i['action']}" data-severity="{i['severity']}" data-category="{i['category']}" data-search="{e(search)}">
+<div class="ih"><span class="no">{e(i['id'])}</span><span class="tag {i['action']}">{ACTION_LABEL[i['action']]}</span><span class="tag sev-{i['severity']}">{i['severity'].title()}</span><span class="j">{e(i['judgment'])}</span><span class="cls l3">{e(i['category'])} · {e(i['classification'])} · <a href="{RULES_URL}#{e(i['check'])}"><code>{e(i['check'])}</code></a></span><a class="rl" href="{RULES_URL}#{e(i['check'])}">rule</a></div>
 <h3>{e(i['summary'])}</h3>
 <table class="kv">
 {why}
-<tr class="l2"><th>Measured</th><td>{measured}</td></tr>
-<tr class="l2"><th>Expected</th><td>{e(i['expected'])}</td></tr>
-<tr class="l2"><th>Files</th><td>{e(i['files_summary'])}<details><summary>{len(files)} files</summary><div class="paths">{'<br>'.join(e(f) for f in files)}</div></details></td></tr>
+<tr><th>Measured</th><td>{measured}</td></tr>
+<tr><th>Expected</th><td>{e(i['expected'])}</td></tr>
+<tr><th>Files</th><td>{e(i['files_summary'])}<details><summary>{len(files)} files</summary><div class="paths">{'<br>'.join(e(f) for f in files)}</div></details></td></tr>
 {gl}
 {basis}
 <tr><th>Fix direction</th><td>{e(i['fix'])}</td></tr>

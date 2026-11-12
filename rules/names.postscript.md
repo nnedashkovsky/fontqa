@@ -3,6 +3,7 @@ id: names.postscript
 title: PostScript name is valid
 summary: Name ID 6 is at most 63 printable ASCII characters, without spaces or the characters [ ] ( ) { } < > / %.
 category: F
+level: engineer
 severity: high
 action: fix
 applies: Installable fonts (OTF, TTF outside a Web folder).

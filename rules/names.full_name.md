@@ -3,6 +3,7 @@ id: names.full_name
 title: Full name is not too long
 summary: Name ID 4 is at most 63 characters.
 category: F
+level: engineer
 severity: low
 action: fix
 applies: Installable fonts (OTF, TTF outside a Web folder).

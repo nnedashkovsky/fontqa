@@ -1,110 +1,77 @@
-"""Levels of detail: one report, three depths.
+"""Levels: what is checked, and how deep the report goes.
 
-Beginner   what is wrong, why it matters, what users see, what to do.
-Designer   + measured and expected values, files, glyphs, the basis; the
-           summary tables. The default.
-Engineer   + how the check measures, classification and check ids, per-file
-           values, the fonts table, the checks performed and the inputs.
+Designer   what concerns the drawing: character set and languages, outlines,
+           metrics and kerning, OpenType features, family tests. The report
+           shows measured and expected values, files and glyphs.
+Engineer   everything, including what concerns the file: font tables, names,
+           validators, lineages, variable-font tables, release and menus. The
+           report adds how each check measures, check ids and the tables.
 
-Every element of a page is in the HTML at once; a class says from which level
-it shows (`l2`, `l3`), and the level switcher only sets html[data-level]. So a
-printout or a saved page keeps whatever level was chosen, and nothing is
-generated twice. The choice is remembered per browser and can be set by the
-URL: report.html?level=beginner.
+The level is chosen before a run (checks.in_level decides which checks run)
+and is stored in issues.json; the report is drawn at that level. The Rules
+page lets the reader switch between the two.
+
+Page elements that only an engineer sees carry the class `l3`.
 """
 
-LEVELS = (("1", "Beginner"), ("2", "Designer"), ("3", "Engineer"))
-DEFAULT = "2"
+import html
 
-# Shown as cards above the report and the Rules page, after Font Analyzer's
-# check picker: who the level is for and what it adds. Keep in step with the
-# l2/l3 classes in report_html.py and rules.SECTION_LEVEL.
+LEVELS = (("designer", "Designer"), ("engineer", "Engineer"))
+DEFAULT_RUN = "engineer"     # terminal: the full inspection
+DEFAULT_PAGE = "designer"    # the web page: the first choice for most people
+
+# Shown as cards on the page, above the report and on the Rules page (after
+# Font Analyzer's check picker). Keep in step with checks.DESIGNER.
 INFO = {
-    "report": {
-        "1": ("Mostly for anyone new to font files", [
-            "What is wrong, in plain words",
-            "Why it matters and what users will see",
-            "What to do about it",
-            "Only issues to fix or confirm; harmless differences hidden",
-        ]),
-        "2": ("Mostly for type designers", [
-            "Everything in Beginner",
-            "Measured and expected values, files, glyphs",
-            "Harmless differences too",
-            "Summary by category, predicted symptoms, character set coverage",
-            "Attachments: glyph grid, GSUB, proofs, menus",
-        ]),
-        "3": ("Mostly for font engineers", [
-            "Everything in Designer",
-            "How each check measures: tables, thresholds, tolerances",
-            "Check ids and classification, linked to the rules",
-            "Key table values of every file",
-            "Checks performed, inputs with SHA-256",
-        ]),
-    },
-    "rules": {
-        "1": ("Mostly for anyone new to font files", [
-            "What each rule checks",
-            "Why it matters and what users will see",
-            "How to fix it",
-        ]),
-        "2": ("Mostly for type designers", [
-            "Everything in Beginner",
-            "When a rule does not apply",
-            "Examples: bad and good",
-            "Which fonts it applies to, related rules",
-        ]),
-        "3": ("Mostly for font engineers", [
-            "Everything in Designer",
-            "How each check measures: tables, thresholds, tolerances",
-            "Sources: specifications and vendor documents",
-        ]),
-    },
+    "designer": ("Mostly for type designers: what concerns the drawing", [
+        "Overall info about the font",
+        "Character set and language check",
+        "Outlines: extremes, zero-length segments, coordinates",
+        "Metrics and kerning overview",
+        "OpenType features overview",
+        "Family tests: same set, widths, vertical metrics, masters",
+    ]),
+    "engineer": ("Mostly for font engineers: what concerns the file", [
+        "Everything in Designer",
+        "Font tables: names, OS/2, head, post, meta, hinting",
+        "Full family testing: lineages, variable vs static, instance names, STAT",
+        "Validators: OTS, Font Bakery",
+        "Release readiness and menu simulation",
+        "How each check measures: tables, thresholds, tolerances",
+    ]),
 }
 
 CSS = """<style>
-html[data-level="1"] .l2,html[data-level="1"] .l3,html[data-level="2"] .l3{display:none!important}
-html[data-level="1"] .l1-hide{display:none!important}
-html:not([data-level="1"]) .l1-only{display:none!important}
+html[data-level="designer"] .l3{display:none!important}
 .levels{display:inline-flex;border:1px solid var(--line-2);border-radius:var(--r);overflow:hidden}
 .levels button{border:0;background:transparent;padding:3px 10px;font-family:var(--mono);font-size:11px;color:var(--muted);cursor:pointer}
 .levels button+button{border-left:1px solid var(--line-2)}
 .levels button.on{background:var(--accent);color:var(--on-accent)}
-.lvpanel{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0 6px}
-.lvcard{text-align:left;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:11px 14px 12px;cursor:pointer}
-.lvcard:hover{border-color:var(--line-2)}
+.lvpanel{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:18px 0 6px}
+.lvcard{text-align:left;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:11px 14px 12px}
+button.lvcard{cursor:pointer}button.lvcard:hover{border-color:var(--line-2)}
 .lvcard.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--accent-soft)}
+.lvcard:not(.on).static{opacity:.6}
 .lvcard .lt{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-weight:600;font-size:14px}
 .lvcard .lt span{font-family:var(--mono);font-size:10.5px;font-weight:500;color:var(--accent)}
 .lvcard .lw{font-size:12px;color:var(--muted);margin:2px 0 6px}
 .lvcard ul{margin:0;padding-left:16px;font-size:12px;line-height:1.45;color:var(--ink-2)}.lvcard li{margin:1px 0}
+.lvnote{font-size:12.5px;color:var(--muted);margin:4px 0 0}
 @media (max-width:700px){.lvpanel{grid-template-columns:1fr}.lvcard:not(.on) ul{display:none}}
-@media print{.levels,.lvpanel{display:none}}
+@media print{.levels,.lvpanel,.lvnote{display:none}}
 </style>"""
 
-# set the level before the page paints, so it does not flash at the default
-HEAD_SCRIPT = """<script>(function(){var l="%s",m={beginner:"1",designer:"2",engineer:"3"};
+# Rules page: the reader's choice, before the page paints
+HEAD_SCRIPT = """<script>(function(){var l="%s";
 try{l=localStorage.getItem("fontqa:level")||l}catch(e){}
-var q=(location.search.match(/[?&]level=([a-z0-9]+)/i)||[])[1];if(q)l=m[q.toLowerCase()]||q;
-if(!/^[123]$/.test(l))l="%s";document.documentElement.dataset.level=l})();</script>""" % (DEFAULT, DEFAULT)
+var q=(location.search.match(/[?&]level=([a-z]+)/i)||[])[1];if(q)l=q.toLowerCase();
+if(l!=="designer"&&l!=="engineer")l="%s";document.documentElement.dataset.level=l})();</script>""" % (DEFAULT_PAGE, DEFAULT_PAGE)
 
-SWITCH = ('<div class="levels" role="group" aria-label="Level of detail">'
+SWITCH = ('<div class="levels" role="group" aria-label="Level">'
           + "".join(f'<button type="button" data-level="{k}">{v}</button>' for k, v in LEVELS) + "</div>")
 
-def panel(kind="report"):
-    """Level cards: who each level is for and what it shows. A card click sets the level."""
-    import html
-    cards = []
-    for k, name in LEVELS:
-        who, items = INFO[kind][k]
-        cards.append(f'<button type="button" class="lvcard" data-level="{k}"><div class="lt">{name}'
-                     f'{"<span>default</span>" if k == DEFAULT else ""}</div><div class="lw">{html.escape(who)}</div>'
-                     "<ul>" + "".join(f"<li>{html.escape(i)}</li>" for i in items) + "</ul></button>")
-    return '<div class="lvpanel" role="group" aria-label="Level of detail">' + "".join(cards) + "</div>"
-
-
 SCRIPT = """<script>(function(){
-  var root=document.documentElement,sel=".levels button,.lvcard";
+  var root=document.documentElement,sel=".levels button,button.lvcard";
   function mark(){document.querySelectorAll(sel).forEach(function(b){b.classList.toggle("on",b.dataset.level===root.dataset.level)})}
   document.querySelectorAll(sel).forEach(function(b){b.onclick=function(){
     root.dataset.level=b.dataset.level;try{localStorage.setItem("fontqa:level",b.dataset.level)}catch(e){}mark();
@@ -113,6 +80,28 @@ SCRIPT = """<script>(function(){
 })();</script>"""
 
 
-def head(html_head):
-    """Insert the level CSS and the early script into a page head."""
+def name(level):
+    return dict(LEVELS).get(level, level)
+
+
+def panel(current=None, interactive=True):
+    """Level cards: who each level is for and what it checks. `current` marks one;
+    interactive cards are buttons that switch the page."""
+    cards = []
+    for k, title in LEVELS:
+        who, items = INFO[k]
+        tag = "button" if interactive else "div"
+        on = " on" if k == current else ""
+        cards.append(f'<{tag} {"type=button " if interactive else ""}class="lvcard{on}{"" if interactive else " static"}" data-level="{k}">'
+                     f'<div class="lt">{title}{"<span>this report</span>" if (k == current and not interactive) else ""}</div>'
+                     f'<div class="lw">{html.escape(who)}</div>'
+                     "<ul>" + "".join(f"<li>{html.escape(i)}</li>" for i in items) + f"</ul></{tag}>")
+    return '<div class="lvpanel" role="group" aria-label="Level">' + "".join(cards) + "</div>"
+
+
+def head(html_head, level=None):
+    """Level CSS into a page head. With `level`, the page is fixed at it (a report);
+    without, the reader's choice is restored (the Rules page)."""
+    if level:
+        return html_head.replace('<html lang="en">', f'<html lang="en" data-level="{level}">', 1).replace("</head>", CSS + "</head>", 1)
     return html_head.replace("</head>", CSS + HEAD_SCRIPT + "</head>", 1)

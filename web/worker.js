@@ -55,6 +55,7 @@ async function boot() {
   } catch (err) { /* no cards: the report falls back to the short texts in the code */ }
   py.runPython(`import sys\nif "/app" not in sys.path: sys.path.insert(0, "/app")`);
   env = JSON.parse(py.runPython(`import json\nfrom core.inventory import environment\njson.dumps(environment())`));
+  env.levels = JSON.parse(py.runPython(`import json\nfrom core import levels\njson.dumps({"css": levels.CSS, "panel": levels.panel()})`));
   env.harfbuzz = self.hb.version_string();
   env.pyodide = py.version;
   env.boot_ms = Math.round(performance.now() - t0);
@@ -198,7 +199,7 @@ json.dumps(r, ensure_ascii=False, sort_keys=True)
     return { setup, result };
   },
 
-  async inspect({ role, paths, facts, ots, fontbakery, fontJson, refs, attachments, profile }) {
+  async inspect({ role, paths, facts, ots, fontbakery, fontJson, refs, attachments, profile, level }) {
     const t0 = performance.now();
     let fb = null;
     if (fontbakery) {
@@ -249,7 +250,7 @@ if a["profile"]:  # window.checker.runInspection({profile: true}) — where the 
     prof = cProfile.Profile()
     prof.enable()
 r = run(paths, ots=a["ots"], fontbakery=a["fb"],
-        font_json=a["fontJson"], facts=facts, progress=lambda n, t, p: progress_js(n, t, p))
+        font_json=a["fontJson"], facts=facts, progress=lambda n, t, p: progress_js(n, t, p), level=a["level"])
 pages, extra = {}, ""
 if a["attachments"]:
     from core import attachments as att
@@ -257,7 +258,8 @@ if a["attachments"]:
     views = att.views_for(paths, facts)
     up, it = att.default_refs([(p.split("/")[-1].rsplit(".", 1)[0], f"/in/reference/{p}") for p in a["refs"]])
     pages = att.build(views, up, it, r["title"])
-    pages["menus.html"] = att.menus_page(r)
+    if r.get("menus"):
+        pages["menus.html"] = att.menus_page(r)
     extra = att.specimen_section(views)
 profile = ""
 if prof:
@@ -270,7 +272,7 @@ if prof:
     profile = buf.getvalue()
 json.dumps({"issues": r, "profile": profile, "html": render_html(r, extra, list(pages)), "xlsx": base64.b64encode(render_xlsx(r)).decode(),
             "pages": pages}, ensure_ascii=False, sort_keys=True)
-`, { role, paths, facts, ots, fb, fontJson, refs: refs || [], attachments: attachments !== false, profile: !!profile });
+`, { role, paths, facts, ots, fb, fontJson, refs: refs || [], attachments: attachments !== false, profile: !!profile, level: level || "designer" });
     out.ms = Math.round(performance.now() - t0);
     return out;
   },

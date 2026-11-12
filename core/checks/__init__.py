@@ -69,6 +69,32 @@ class Check:
     def applicable(self, view):
         return view.ok and (self.applies is None or self.applies(view))
 
+    @property
+    def level(self):
+        return "designer" if self.id in DESIGNER else "engineer"
+
+
+# Checks a type designer runs: what concerns the drawing (core/levels.py).
+# Everything else is file-level and runs at the engineer level only.
+DESIGNER = frozenset({
+    # character set and family
+    "charset.family_same", "charset.store_minimum", "glyphs.empty_mapped", "glyphs.notdef",
+    # outlines
+    "outline.extrema", "outline.zero_length", "outline.fractional",
+    # metrics
+    "glyphs.spaces", "glyphs.tabular", "glyphs.mark_widths", "widths.near_equal",
+    "metrics.x_cap_height", "metrics.win_clipping", "metrics.family_vertical",
+    # kerning and OpenType features
+    "layout.kern_shadowed", "layout.unreachable", "layout.aalt", "layout.marks",
+    # variable fonts: the drawing side
+    "vf.interpolation", "vf.vs_static",
+})
+
+
+def in_level(check, level):
+    """Engineer runs everything; designer runs the drawing checks."""
+    return level != "designer" or check.level == "designer"
+
 
 REGISTRY = []
 
@@ -113,4 +139,6 @@ def files_of(views):
 def load_all():
     """Import the check modules (registration happens on import)."""
     from . import names, metrics, charset, outline, layout, external, release, variable, lineage  # noqa: F401
+    unknown = DESIGNER - {c.id for c in REGISTRY}
+    assert not unknown, f"DESIGNER lists unknown checks: {sorted(unknown)}"
     return REGISTRY

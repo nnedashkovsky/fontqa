@@ -54,7 +54,8 @@ def write_reports(result, out_dir, paths=None, refs=(), attachments=True):
         views = att.views_for(paths)
         up, it = att.default_refs(refs)
         pages = att.build(views, up, it, result["title"])
-        pages["menus.html"] = att.menus_page(result)
+        if result.get("menus"):
+            pages["menus.html"] = att.menus_page(result)
         for name, page in pages.items():
             with open(os.path.join(out_dir, name), "w", encoding="utf-8") as fh:
                 fh.write(page)
@@ -99,6 +100,8 @@ def main(argv=None):
     p.add_argument("inputs", nargs="+")
     p.add_argument("--out", required=True, help="folder for issues.json, report.html, report.xlsx")
     p.add_argument("--profile", default="release")
+    p.add_argument("--level", choices=("designer", "engineer"), default="engineer",
+                   help="designer: the drawing checks; engineer: everything (default)")
     p.add_argument("--fontbakery", action="store_true", help="also run Font Bakery (universal)")
     p.add_argument("--font-json", help="design/font.json of the project, to check promo facts")
     p.add_argument("--no-ots", action="store_true")
@@ -125,7 +128,7 @@ def main(argv=None):
             with open(args.font_json, encoding="utf-8") as fh:
                 fj = json.load(fh)
         only = [c.strip() for c in args.checks.split(",")] if args.checks else None
-        result = run(paths, profile=args.profile, ots=ots_map, fontbakery=fb, font_json=fj, progress=tick, only=only)
+        result = run(paths, profile=args.profile, ots=ots_map, fontbakery=fb, font_json=fj, progress=tick, only=only, level=args.level)
         print(file=sys.stderr)
         if args.json_only:
             os.makedirs(args.out, exist_ok=True)
