@@ -29,8 +29,23 @@ SLOPE_WORDS = {"italic", "oblique", "slanted", "upright", "roman"}
 
 
 def style_words(style):
-    """'Dark Display XBold Italic' -> ['dark', 'display', 'xbold', 'italic']."""
-    return [w.lower() for w in re.split(r"[\s\-_]+", style or "") if w]
+    """'Dark Display XBold Italic' -> ['dark', 'display', 'xbold', 'italic'].
+
+    Compound weight and width words written apart are joined: 'Extra Light' ->
+    'extralight', 'Semi Condensed' -> 'semicondensed', so they count as one word
+    (200, 4) and not as 'light' (300) or 'condensed' (3) with a stray prefix.
+    """
+    words = [w.lower() for w in re.split(r"[\s\-_]+", style or "") if w]
+    out, i = [], 0
+    while i < len(words):
+        pair = words[i] + words[i + 1] if i + 1 < len(words) else None
+        if pair in WEIGHT_WORDS or pair in WIDTH_WORDS:
+            out.append(pair)
+            i += 2
+        else:
+            out.append(words[i])
+            i += 1
+    return out
 
 
 def non_wws_words(style):

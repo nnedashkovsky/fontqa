@@ -27,7 +27,7 @@ Apps order and group styles by this number, not by name:
 ## How it is checked
 
 1. The style name is taken from ID 17 (or ID 2) and split into words.
-2. Known weight words give the expected value: Thin/Hairline 100, ExtraLight/UltraLight/XLight 200, Light/Lt 300, Book/Regular/Normal/Rg 400, Medium/Md 500, SemiBold/DemiBold/SBd 600, Bold/Bd 700, ExtraBold/UltraBold/XBold 800, Black/Heavy 900, ExtraBlack/UltraBlack 950. Compound words are recognised when written as one word (ExtraLight, not Extra Light). If several appear, the last one counts.
+2. Known weight words give the expected value: Thin/Hairline 100, ExtraLight/UltraLight/XLight 200, Light/Lt 300, Book/Regular/Normal/Rg 400, Medium/Md 500, SemiBold/DemiBold/SBd 600, Bold/Bd 700, ExtraBold/UltraBold/XBold 800, Black/Heavy 900, ExtraBlack/UltraBlack 950. Compound words count whether written together or apart: ExtraLight and Extra Light both give 200, Semi Bold gives 600. If several appear, the last one counts.
 3. No weight word means 400.
 4. A different `usWeightClass` is reported. If the name has no weight word, the result is **Confirm**: the name may simply not say the weight.
 

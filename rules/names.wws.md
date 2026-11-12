@@ -30,7 +30,7 @@ The WWS bit claims "IDs 16/17 already follow the weight-width-slope model". If i
 ## How it is checked
 
 1. The style is ID 17 (or ID 2). It is split into words at spaces, hyphens and underscores.
-2. Words known as weight (Thin … Black and abbreviations like Bd, Md, XBd), width (Condensed, Narrow, Expanded, Wide…) or slope (Italic, Oblique, Upright, Roman) are removed.
+2. Words known as weight (Thin … Black and abbreviations like Bd, Md, XBd), width (Condensed, Narrow, Expanded, Wide…) or slope (Italic, Oblique, Upright, Roman) are removed. Compound words count whether written together or apart (Extra Light, Semi Condensed).
 3. If anything is left — "Display", "Dark", "Text", "Rounded" — the font needs IDs 21 and 22. Missing IDs → **low**.
 4. If, in addition, the WWS bit is set → **medium**: the font actively claims something false.
 

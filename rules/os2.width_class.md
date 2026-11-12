@@ -25,7 +25,7 @@ The result is **Confirm**: some families use the class for designs that the name
 ## How it is checked
 
 1. The style name is taken from ID 17 (or ID 2) and split into words.
-2. Known width words give the expected class: UltraCondensed 1, ExtraCondensed and Compressed 2, Condensed and Narrow 3, SemiCondensed 4, SemiExpanded 6, Expanded, Extended and Wide 7, ExtraExpanded 8, UltraExpanded 9. Compound words are recognised when written as one word.
+2. Known width words give the expected class: UltraCondensed 1, ExtraCondensed and Compressed 2, Condensed and Narrow 3, SemiCondensed 4, SemiExpanded 6, Expanded, Extended and Wide 7, ExtraExpanded 8, UltraExpanded 9. Compound words count whether written together or apart: SemiCondensed and Semi Condensed both give 4.
 3. No width word means 5.
 
 ## When it does not apply
