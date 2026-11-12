@@ -93,6 +93,8 @@ def main(argv=None):
     p = sub.add_parser("compare")
     p.add_argument("a")
     p.add_argument("b")
+    p = sub.add_parser("rules", help="check the rule cards against the code; --out writes the Rules page")
+    p.add_argument("--out", help="HTML file for the Rules page")
     p = sub.add_parser("inspect")
     p.add_argument("inputs", nargs="+")
     p.add_argument("--out", required=True, help="folder for issues.json, report.html, report.xlsx")
@@ -137,6 +139,23 @@ def main(argv=None):
         for e in result["errors"]:
             print("  error:", e["check"], e["error"], file=sys.stderr)
         return 0
+
+    if args.cmd == "rules":
+        from . import rules
+        from .checks import load_all
+        registry = load_all()
+        cards = rules.load()
+        errors, notes = rules.validate(cards, registry)
+        for n in notes:
+            print("note:", n)
+        for err in errors:
+            print("error:", err, file=sys.stderr)
+        if args.out:
+            os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+            with open(args.out, "w", encoding="utf-8") as f:
+                f.write(rules.render_page(cards, registry))
+            print(f"{len(cards)} cards, {len(registry)} checks → {args.out}")
+        return 1 if errors else 0
 
     if args.cmd == "compare":
         with open(args.a) as fa, open(args.b) as fb:

@@ -42,6 +42,18 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         return super().translate_path(path)
 
     def do_GET(self):
+        if self.path.split("?")[0] in ("/rules", "/rules/", "/rules/index.html"):
+            # the Rules page is built from rules/*.md on every request, so edits show on reload
+            sys.path.insert(0, HERE)
+            from core import rules
+            from core.checks import load_all
+            body = rules.render_page(rules.load(), load_all()).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path.split("?")[0].endswith("/__list.json"):
             folder = self.translate_path(self.path.split("?")[0][: -len("__list.json")])
             if not os.path.isdir(folder):

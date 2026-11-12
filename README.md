@@ -23,6 +23,14 @@ A dropped folder keeps its structure, so App / Desktop / Web lines of the same f
   - `proofs.html` — waterfall, spacing and kerning strings;
   - `menus.html` — how the fonts will appear in Windows (GDI, WWS) and macOS / Font Book menus, predicted from the tables, and a checklist for checking it on a real system.
 
+### Levels of detail
+
+The report and the Rules page have a switch: **Beginner** (what is wrong, why it matters, what to do), **Designer** (the default: plus measured and expected values, files, glyphs and the summary tables) and **Engineer** (plus how each check measures, check ids, the fonts table and the inputs). `report.html?level=beginner` opens a report at a given level.
+
+### Rules
+
+Every check is explained in a card in `rules/<check id>.md`: what it checks, why it matters, how it is checked, when it does not apply, how to fix it, an example and sources. The Rules page (`/rules/`) is built from these cards, and the report quotes them. `./check.sh rules` checks that the cards agree with the code.
+
 ### How to read a finding
 
 Every finding has three marks:

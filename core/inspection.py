@@ -15,7 +15,7 @@ import datetime
 import inspect as pyinspect  # stdlib; this module is core.inspection
 from collections import Counter, defaultdict
 
-from . import VERSION, inventory
+from . import VERSION, inventory, rules
 from .checks import CATEGORIES, REGISTRY, families, load_all
 from .checks.charset import coverage
 from .fontview import FontView, assign_outline_keys
@@ -218,6 +218,7 @@ def _aggregate(hits, today):
             "first_seen": today or datetime.date.today().isoformat(),
             "last_seen": today or datetime.date.today().isoformat(),
             "_symptom_texts": list(c.symptoms),
+            "rule": rules.for_issue(cid),
         })
     rows.sort(key=lambda r: (ACTION_ORDER[r["action"]], SEVERITY_ORDER[r["severity"]], r["category"], r["check"], r["key"]))
     symptoms = []

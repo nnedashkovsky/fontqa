@@ -27,6 +27,22 @@ def main(out=os.path.join(HERE, "_site")):
     with open(os.path.join(out, "index.html"), "w") as f:
         f.write('<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=web/">'
                 '<title>Redirect</title><a href="web/">Open Font QA</a>\n')
+    sys.path.insert(0, HERE)
+    from core import rules
+    from core.checks import load_all
+    registry = load_all()
+    cards = rules.load()
+    errors, _ = rules.validate(cards, registry)
+    if errors:
+        sys.exit("rule cards disagree with the code:\n  " + "\n  ".join(errors))
+    os.makedirs(os.path.join(out, "rules"))
+    md = sorted(n for n in os.listdir(rules.RULES_DIR) if n.endswith(".md"))
+    for n in md:
+        shutil.copy(os.path.join(rules.RULES_DIR, n), os.path.join(out, "rules", n))
+    with open(os.path.join(out, "rules", "__list.json"), "w") as f:
+        json.dump({"base": "rules", "files": md}, f)
+    with open(os.path.join(out, "rules", "index.html"), "w", encoding="utf-8") as f:
+        f.write(rules.render_page(cards, registry))
     open(os.path.join(out, ".nojekyll"), "w").close()
     print(f"{out}: {len(files)} core files")
 

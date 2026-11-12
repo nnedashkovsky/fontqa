@@ -44,6 +44,14 @@ async function boot() {
     py.FS.mkdirTree(dir);
     py.FS.writeFile("/app/core/" + f, text);
   }
+  // rule cards: the report quotes "why it matters" and "how it is checked" from them
+  try {
+    const rl = await (await fetch("../rules/__list.json", { cache: "no-store" })).json();
+    py.FS.mkdirTree("/app/rules");
+    for (const f of rl.files.filter((f) => f.endsWith(".md") && !f.includes("/"))) {
+      py.FS.writeFile("/app/rules/" + f, await (await fetch("../rules/" + f, { cache: "no-store" })).text());
+    }
+  } catch (err) { /* no cards: the report falls back to the short texts in the code */ }
   py.runPython(`import sys\nif "/app" not in sys.path: sys.path.insert(0, "/app")`);
   env = JSON.parse(py.runPython(`import json\nfrom core.inventory import environment\njson.dumps(environment())`));
   env.harfbuzz = self.hb.version_string();
