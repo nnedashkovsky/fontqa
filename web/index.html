@@ -1,0 +1,818 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Font QA</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Instrument+Serif&display=swap">
+<style>
+:root{
+  --bg:#F3F5F4; --surface:#FFF; --surface-2:#F8FAF9; --sunken:#E8ECEA;
+  --ink:#15191A; --ink-2:#3B4446; --muted:#5E696B; --faint:#8B9698;
+  --line:#DCE2E0; --line-2:#C7CFCD;
+  --accent:#1F6F5C; --accent-soft:#E0EFE9; --on-accent:#fff;
+  --warn:#A85B14; --warn-soft:#FAEEE0;
+  --sans:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+  --serif:"Instrument Serif",Georgia,serif; --r:7px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0D100F; --surface:#161A19; --surface-2:#1B201F; --sunken:#0A0D0C;
+  --ink:#E5EAE8; --ink-2:#BCC5C3; --muted:#8C9795; --faint:#6C7775;
+  --line:#252B2A; --line-2:#333B39;
+  --accent:#4FBF9F; --accent-soft:#0F2A24; --on-accent:#05211A;
+  --warn:#D69049; --warn-soft:#2E2211;
+}}
+:root[data-theme="dark"]{
+  --bg:#0D100F; --surface:#161A19; --surface-2:#1B201F; --sunken:#0A0D0C;
+  --ink:#E5EAE8; --ink-2:#BCC5C3; --muted:#8C9795; --faint:#6C7775;
+  --line:#252B2A; --line-2:#333B39;
+  --accent:#4FBF9F; --accent-soft:#0F2A24; --on-accent:#05211A;
+  --warn:#D69049; --warn-soft:#2E2211;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;
+  -webkit-font-smoothing:antialiased}
+h1,h2{margin:0;text-wrap:balance}
+button{font:inherit;color:inherit;cursor:pointer}
+.wrap{max-width:1180px;margin:0 auto;padding:26px 24px 70px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:14px}
+header h1{font-family:var(--serif);font-size:33px;font-weight:400;line-height:1}
+header .sub{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:5px}
+.tally{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-end}
+.tally div{text-align:right}
+.tally .v{font-family:var(--mono);font-size:21px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.tally .k{font-size:10.5px;color:var(--muted);letter-spacing:.03em}
+.tally .v.bad{color:var(--warn)}
+.engine{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-bottom:18px;min-height:18px}
+.engine b{color:var(--accent);font-weight:500}
+.engine.err{color:var(--warn)}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:22px;align-items:start}
+@media (max-width:900px){.cols{grid-template-columns:1fr}}
+.lbl{font-size:10.5px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);margin-bottom:9px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px}
+aside .card{padding:14px}
+.drop{border:2px dashed var(--line-2);border-radius:12px;padding:34px 24px;background:var(--surface);text-align:center;
+  transition:border-color .12s,background .12s}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop b{font-size:16px}
+.drop span{display:block;color:var(--muted);font-size:12.5px;margin-top:6px}
+.drop.small{padding:12px;border-width:1.5px;border-radius:var(--r);font-size:12px;color:var(--muted)}
+.btns{display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap}
+.btn{border:1px solid var(--line-2);background:var(--surface);border-radius:var(--r);padding:5px 11px;
+  font-size:12px;font-family:var(--mono)}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn:disabled{opacity:.45;cursor:default}
+.progress{display:flex;align-items:center;gap:10px;margin:14px 0;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.progress .bar{flex:0 0 180px;height:4px;background:var(--sunken);border-radius:2px;overflow:hidden}
+.progress .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .1s}
+.progress span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fam{margin-top:18px}
+.fam-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.fam-h .n{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--accent)}
+.fam-h .m{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.rows{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:hidden}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 170px;gap:12px;padding:9px 12px;border-top:1px solid var(--line);align-items:center}
+.row:first-child{border-top:0}
+.sample{font-size:26px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.sample.none{font-family:var(--mono);font-size:11px;color:var(--warn)}
+.meta{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right}
+.meta b{color:var(--ink-2);font-weight:600}
+.chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;grid-column:1/-1}
+.chip{border:1px solid var(--line-2);border-radius:5px;padding:1px 6px;font-family:var(--mono);font-size:10px;
+  color:var(--muted);background:var(--surface-2)}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.chip.bad{border-color:var(--warn);color:var(--warn);background:var(--warn-soft)}
+.note{font-size:12px;color:var(--warn);background:var(--warn-soft);border-radius:var(--r);padding:6px 10px;margin-top:8px}
+.empty{color:var(--muted);font-size:13px;margin-top:18px}
+.ref{padding:8px 0;border-top:1px solid var(--line)}
+.ref:first-child{border-top:0;padding-top:0}
+.ref .s{font-size:21px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ref .m{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.ref .m b{color:var(--accent);font-weight:500}
+select{width:100%;font-family:var(--mono);font-size:11px;background:var(--surface-2);color:var(--ink);
+  border:1px solid var(--line-2);border-radius:var(--r);padding:4px}
+.probe{margin-top:10px;font-size:12px}
+.probe .h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.probe .r{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:4px}
+.probe .r b{color:var(--ink-2);font-weight:600}
+.probe .r .ok{color:var(--accent)}
+.probe .r .bad{color:var(--warn)}
+.probe details{margin-top:4px}
+.probe summary{cursor:pointer;font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.probe pre,.drawer pre{font-family:var(--mono);font-size:10.5px;white-space:pre-wrap;word-break:break-word;
+  background:var(--sunken);border-radius:5px;padding:8px;max-height:220px;overflow:auto;margin:6px 0 0}
+.cmp{margin-top:10px;font-size:12px}
+.cmp .t{font-family:var(--mono);font-size:11.5px}
+.cmp .t .ok{color:var(--accent)} .cmp .t .bad{color:var(--warn)}
+table.diff{width:100%;border-collapse:collapse;margin-top:6px;font-family:var(--mono);font-size:10px;table-layout:fixed}
+table.diff td{border-top:1px solid var(--line);padding:3px 4px;vertical-align:top;word-break:break-all}
+.dl{display:flex;flex-wrap:wrap;gap:6px}
+.drawer{position:fixed;right:16px;bottom:16px;width:min(560px,calc(100vw - 32px));max-height:70vh;display:flex;
+  flex-direction:column;background:var(--surface);border:1px solid var(--line-2);border-radius:10px;
+  box-shadow:0 8px 30px rgba(0,0,0,.18);z-index:10}
+.drawer .dh{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);
+  font-family:var(--mono);font-size:11.5px}
+.drawer pre{max-height:none;flex:1;margin:0;border-radius:0 0 10px 10px}
+.theme{border:1px solid var(--line-2);background:transparent;border-radius:var(--r);padding:3px 8px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.insp{margin-top:14px}
+.tp-ctl{display:flex;flex-direction:column;gap:10px}
+.tp-text{width:100%;font:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--line-2);border-radius:var(--r);background:var(--surface-2);color:var(--ink)}
+.tp-size{font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.tp-feats{display:flex;flex-wrap:wrap;gap:4px}
+.tp-feats label{font-family:var(--mono);font-size:10.5px;border:1px solid var(--line-2);border-radius:5px;padding:1px 6px;cursor:pointer;color:var(--muted);user-select:none}
+.tp-feats label.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.tp-feats input{display:none}
+.tp-row{padding:10px 12px;border-top:1px solid var(--line)}
+.tp-row:first-child{border-top:0}
+.tp-row .tl{font-family:var(--mono);font-size:10.5px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.tp-row .tl b{color:var(--ink-2);font-weight:600}
+.tp-row .ts{line-height:1.2;white-space:nowrap;overflow-x:auto;overflow-y:hidden;color:var(--ink);padding:4px 0 2px}
+.tp-axes{display:flex;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.tp-axes label{display:flex;gap:4px;align-items:center}
+.tp-axes input[type=range]{width:110px}
+.tp-row select{font-size:10.5px;padding:1px 4px;width:auto}
+.insp .opts{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:12.5px}
+.insp .opts label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.drop.small.inline{display:inline-block;padding:5px 10px}
+.drop.small.inline.has{border-style:solid;border-color:var(--accent);color:var(--accent)}
+.insp-run{display:flex;gap:12px;align-items:center;margin-top:12px;font-family:var(--mono);font-size:11.5px}
+.muted{color:var(--muted)}
+.insp-sum{display:flex;gap:18px;flex-wrap:wrap;align-items:baseline;margin-top:14px;font-family:var(--mono);font-size:12px}
+.insp-sum b{font-size:20px;font-weight:500}
+.insp-sum .fix{color:#B23A2E}.insp-sum .confirm{color:var(--warn)}
+:root[data-theme="dark"] .insp-sum .fix{color:#E07A6E}
+.insp-dl{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.insp iframe{width:100%;height:80vh;border:1px solid var(--line);border-radius:var(--r);margin-top:12px;background:var(--bg)}
+@media (max-width:600px){.wrap{padding:18px 16px 60px}.row{grid-template-columns:1fr}.meta{text-align:left}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>Font QA</h1>
+    <div class="sub">Inventory, inspection, references and probes · nothing leaves this machine</div>
+  </div>
+  <div class="tally">
+    <div><div class="v" id="t-files">0</div><div class="k">files</div></div>
+    <div><div class="v" id="t-fams">0</div><div class="k">families</div></div>
+    <div><div class="v" id="t-mb">0</div><div class="k">MB</div></div>
+    <div><div class="v" id="t-err">0</div><div class="k">unreadable</div></div>
+    <div><div class="v" id="t-ots">0</div><div class="k">rejected by browser</div></div>
+    <button class="theme" id="theme" title="Theme">auto</button>
+  </div>
+</header>
+<div class="engine" id="engine">Starting the engine…</div>
+
+<div class="cols">
+<main>
+  <div class="drop" id="drop">
+    <b>Drop fonts or folders here</b>
+    <span>OTF, TTF, WOFF, WOFF2 — read in this browser, never uploaded. A dropped folder keeps its structure: App / Desktop / Web.</span>
+    <div class="btns">
+      <button class="btn" id="pick-files">Choose files</button>
+      <button class="btn" id="pick-dir">Choose folder</button>
+    </div>
+    <input type="file" id="in-files" multiple accept=".otf,.ttf,.woff,.woff2,.json" hidden>
+    <input type="file" id="in-dir" webkitdirectory directory multiple hidden>
+  </div>
+  <div class="progress" id="progress" hidden><div class="bar"><i></i></div><span></span></div>
+  <div class="card insp" id="insp" hidden>
+    <div class="lbl">Inspection · profile release</div>
+    <div class="opts">
+      <label><input type="checkbox" id="opt-fb"> Include Font Bakery <span class="muted">(slow: about 10 s per OTF/TTF)</span></label>
+      <span class="drop small inline" id="drop-fj">Drop <code>design/font.json</code> to check promo facts</span>
+    </div>
+    <div class="insp-run"><button class="btn primary" id="run-insp">Run inspection</button><span id="insp-state" class="muted"></span></div>
+    <div id="insp-result"></div>
+  </div>
+  <section id="inventory"><p class="empty">No fonts yet.</p></section>
+  <section id="testpage" hidden>
+    <div class="fam-h" style="margin-top:26px"><span class="n">Test page</span><span class="m">every style once (a Desktop TTF/OTF where there is one) · features and axes apply live</span></div>
+    <div class="card tp-ctl">
+      <input id="tp-text" class="tp-text" value="Hamburgefonstiv AVATAR Toffee fi fl 1/2 0123456789 ÀÉÎõüß ąęłż ăşţ">
+      <label class="tp-size">Size <input type="range" id="tp-size" min="12" max="120" value="34"> <span id="tp-size-v">34</span></label>
+      <div class="tp-feats" id="tp-feats"></div>
+    </div>
+    <div class="rows" id="tp-rows"></div>
+  </section>
+</main>
+
+<aside>
+  <div class="card">
+    <div class="lbl">References</div>
+    <div id="refs"><p class="empty" style="margin:0">Loading PT Sans and PT Serif Expert…</p></div>
+    <div class="drop small" id="drop-ref" style="margin-top:10px">Drop your own font to add it as a reference</div>
+    <input type="file" id="in-ref" multiple accept=".otf,.ttf,.woff,.woff2" hidden>
+  </div>
+
+  <div class="card">
+    <div class="lbl">Probes</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Font Bakery and Hyperglot run on the selected files; HarfBuzz shapes every OTF/TTF in the set.</div>
+    <select id="probe-files" multiple size="5"></select>
+    <div class="probe" id="p-shape"><div class="h"><b>HarfBuzz</b><button class="btn" data-probe="shape" disabled>Run</button></div><div class="r"></div></div>
+    <div class="probe" id="p-hyperglot"><div class="h"><b>Hyperglot</b><button class="btn" data-probe="hyperglot" disabled>Run</button></div><div class="r"></div></div>
+    <div class="probe" id="p-fontbakery"><div class="h"><b>Font Bakery</b><button class="btn" data-probe="fontbakery" disabled>Run</button></div><div class="r"></div></div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">Compare with terminal</div>
+    <div class="drop small" id="drop-json">Drop JSON written by <code>./check.sh</code></div>
+    <input type="file" id="in-json" multiple accept=".json" hidden>
+    <div id="cmp"></div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">Downloads</div>
+    <div class="dl" id="downloads"><span style="font-size:12px;color:var(--muted)">Results appear here.</span></div>
+  </div>
+</aside>
+</div>
+</div>
+
+<div class="drawer" id="drawer" hidden>
+  <div class="dh"><b id="dr-title"></b><button class="btn" id="dr-close">Close</button></div>
+  <pre id="dr-body"></pre>
+</div>
+
+<script>
+"use strict";
+/* The page owns files, browser font loading and drawing; the worker owns
+   Python. Every font is also loaded with FontFace: in Chrome and Firefox that
+   runs it through OTS, so a rejected load is a real "browsers will drop this
+   font" finding, and an accepted one gives us the face to draw samples with. */
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const FONT_RE = /\.(otf|ttf|woff2?)$/i;
+const SAMPLE = "Hamburgefonstiv 0123 ÀÉÎõüß";
+
+const state = {
+  env: null,
+  target: [],          // [{path, buf, face, ots}]
+  refs: [],            // same, plus {custom}
+  results: {},         // inventory, references, shape, hyperglot, fontbakery
+};
+
+/* ---------- theme ---------- */
+const THEMES = ["auto", "light", "dark"];
+function applyTheme(t) {
+  if (t === "auto") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = t;
+  $("#theme").textContent = t;
+}
+let theme = "auto";
+try { theme = localStorage.getItem("fontqa:theme") || "auto"; } catch (e) {}
+applyTheme(theme);
+$("#theme").onclick = () => {
+  theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+  applyTheme(theme);
+  try { localStorage.setItem("fontqa:theme", theme); } catch (e) {}
+};
+
+/* ---------- worker ---------- */
+const worker = new Worker("worker.js");
+let seq = 0;
+const pending = new Map();
+let markReady;
+const engineReady = new Promise((r) => (markReady = r));
+
+worker.onmessage = (e) => {
+  const m = e.data;
+  if (m.type === "status") return engine(m.text + "…");
+  if (m.type === "progress") return progress(m.n + 1, m.total, m.path);
+  if (m.type === "fatal") return engine("Engine failed: " + m.error, true);
+  if (m.type === "ready") {
+    state.env = m.env;
+    state.readyLine = `<b>ready</b> · core ${m.env.core} · Pyodide ${m.env.pyodide} · Python ${m.env.python} · fontTools ${m.env.fontTools} · HarfBuzz ${m.env.harfbuzz} · started in ${(m.env.boot_ms / 1000).toFixed(1)} s`;
+    engine(state.readyLine, false, true);
+    markReady();
+    return;
+  }
+  const p = pending.get(m.id);
+  if (!p) return;
+  pending.delete(m.id);
+  if (!pending.size) engine(state.readyLine, false, true);
+  m.ok ? p.resolve(m.result) : p.reject(new Error(m.error));
+};
+function call(cmd, args) {
+  return new Promise((resolve, reject) => {
+    const id = ++seq;
+    pending.set(id, { resolve, reject });
+    worker.postMessage({ id, cmd, ...args });
+  });
+}
+function engine(text, err, html) {
+  const el = $("#engine");
+  el.classList.toggle("err", !!err);
+  if (html) el.innerHTML = text; else el.textContent = text;
+}
+function progress(n, total, path) {
+  const el = $("#progress");
+  if (!total) { el.hidden = true; return; }
+  el.hidden = n >= total;
+  el.querySelector("i").style.width = (100 * n / total) + "%";
+  el.querySelector("span").textContent = `${n} / ${total} · ${path || ""}`;
+}
+
+/* ---------- reading files ---------- */
+const visible = (path) => !path.split("/").some((p) => p.startsWith(".")) && FONT_RE.test(path);
+
+async function fromDrop(dt) {
+  const entries = [...dt.items].map((i) => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  if (!entries.length) return [...dt.files].map((f) => ({ file: f, path: f.name }));
+  const out = [];
+  async function walk(entry, prefix) {
+    if (entry.isFile) {
+      const file = await new Promise((res, rej) => entry.file(res, rej));
+      out.push({ file, path: prefix + entry.name });
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      for (;;) {
+        const batch = await new Promise((res, rej) => reader.readEntries(res, rej));
+        if (!batch.length) break;
+        for (const e of batch) await walk(e, prefix + entry.name + "/");
+      }
+    }
+  }
+  for (const e of entries) await walk(e, "");
+  return out;
+}
+const fromInput = (input) => [...input.files].map((f) => ({ file: f, path: f.webkitRelativePath || f.name }));
+
+async function readAll(items) {
+  const keep = items.filter((i) => visible(i.path)).sort((a, b) => a.path.localeCompare(b.path));
+  return Promise.all(keep.map(async (i) => ({ path: i.path, buf: await i.file.arrayBuffer() })));
+}
+
+let faceSeq = 0;
+async function loadFace(f) {
+  const family = "chk" + (++faceSeq);
+  try {
+    const ff = new FontFace(family, f.buf.slice(0));
+    await ff.load();
+    document.fonts.add(ff);
+    f.face = family; f.ots = "ok";
+  } catch (err) {
+    f.face = null; f.ots = String(err && err.message || err);
+  }
+  return f;
+}
+
+/* ---------- target set ---------- */
+async function setTarget(files) {
+  if (!files.length) return;
+  state.target = files;
+  for (const k of ["inventory", "shape", "hyperglot", "fontbakery"]) delete state.results[k];
+  $("#inventory").innerHTML = `<p class="empty">Reading ${files.length} files…</p>`;
+  await Promise.all(files.map(loadFace));
+  await engineReady;
+  progress(0, files.length, "");
+  const t0 = performance.now();
+  const inv = await call("inventory", { role: "target", files: files.map(({ path, buf }) => ({ path, buf })) });
+  inv.elapsed_ms = Math.round(performance.now() - t0);
+  inv.browser_load = Object.fromEntries(files.map((f) => [f.path, f.ots]));
+  state.results.inventory = inv;
+  progress(0, 0);
+  renderInventory();
+  renderProbeFiles();
+  renderTestPage();
+  renderDownloads();
+  $("#insp").hidden = false;
+  $("#insp-result").innerHTML = "";
+  $("#insp-state").textContent = "";
+}
+
+/* ---------- test page ---------- */
+/* Every style once, live: text, size, OpenType features from the fonts themselves, and for
+   variable fonts the axes and named instances. It is the "set it and look" step RT did by
+   installing the fonts; here nothing is installed, the browser draws the dropped files. */
+const TP_SKIP = new Set(["aalt", "ccmp", "locl", "mark", "mkmk", "rvrn", "init", "medi", "fina", "isol",
+  "rlig", "abvm", "blwm", "dist", "curs", "vert", "vrt2", "vkrn", "fwid", "hwid"]);
+const TP_ON = new Set(["kern", "liga", "calt", "clig"]);
+const tp = { feats: {} };
+
+function renderTestPage() {
+  const inv = state.results.inventory;
+  const byPath = Object.fromEntries(state.target.map((f) => [f.path, f]));
+  // one row per style: copies in App / Desktop / Web and in TTF / WOFF / WOFF2 are the same style
+  // (paired by file name without the lineage marker, as core/checks/lineage.py does)
+  const styleKey = (p) => p.split("/").pop().replace(/\.[^.]+$/, "")
+    .replace(/(?<=[_\-\s])(a|w|d|app|web|desktop)(?=[_\-\s]|$)/gi, "").replace(/[_\-\s]+/g, "_").toLowerCase();
+  const rank = (f) => (/\.(ttf|otf)$/i.test(f.path) ? 0 : 2) + (/(^|\/)desktop\//i.test(f.path) ? 0 : 1);
+  const best = new Map();
+  for (const fam of inv.families) {
+    for (const st of fam.styles) {
+      for (const x of st.files) {
+        const f = byPath[x.path];
+        if (!f || !f.face) continue;
+        const key = styleKey(f.path) + (st.variable ? "|vf" : "");
+        const cur = best.get(key);
+        if (!cur || rank(f) < rank(cur.f)) best.set(key, { fam: fam.family, st, f, facts: inv.files.find((y) => y.path === f.path) });
+      }
+    }
+  }
+  const rows = [...best.values()].sort((a, b) =>
+    (a.st.variable - b.st.variable) || a.fam.localeCompare(b.fam) ||
+    ((a.st.weight_class || 0) - (b.st.weight_class || 0)) || (a.st.italic - b.st.italic) || a.st.subfamily.localeCompare(b.st.subfamily));
+  const feats = new Set();
+  for (const r of rows) {
+    for (const t of ["GSUB", "GPOS"]) for (const x of (((r.facts.layout || {})[t] || {}).features || [])) if (!TP_SKIP.has(x)) feats.add(x);
+  }
+  tp.feats = Object.fromEntries([...feats].sort().map((t) => [t, tp.feats[t] ?? TP_ON.has(t)]));
+  $("#tp-feats").innerHTML = Object.entries(tp.feats).map(([t, on]) =>
+    `<label class="${on ? "on" : ""}"><input type="checkbox" data-feat="${t}"${on ? " checked" : ""}>${t}</label>`).join("");
+  $("#tp-rows").innerHTML = rows.map((r, k) => {
+    const v = r.facts.variation;
+    const axes = v ? `<div class="tp-axes">` + v.axes.map((a) =>
+      `<label>${esc(a.tag)} <input type="range" data-row="${k}" data-axis="${esc(a.tag)}" min="${a.min}" max="${a.max}" step="any" value="${a.default}"><span>${a.default}</span></label>`).join("") +
+      `<select data-row="${k}" data-inst><option value="">instance…</option>` + v.instances.map((i, n) =>
+        `<option value="${n}">${esc(i.name)}</option>`).join("") + `</select></div>` : "";
+    return `<div class="tp-row" data-k="${k}"${v ? ` data-vf="1"` : ""}>
+      <div class="tl"><b>${esc(r.fam)} ${esc(r.st.subfamily)}</b><span>${esc(r.f.path)}</span>${v ? "<span>variable</span>" : ""}</div>
+      ${axes}<div class="ts" style="font-family:'${r.f.face}',var(--mono)"></div></div>`;
+  }).join("");
+  tp.rows = rows;
+  $("#testpage").hidden = !rows.length;
+  applyTestPage();
+}
+
+function applyTestPage() {
+  const text = $("#tp-text").value;
+  const size = $("#tp-size").value;
+  $("#tp-size-v").textContent = size;
+  const ffs = Object.entries(tp.feats).map(([t, on]) => `"${t}" ${on ? 1 : 0}`).join(", ");
+  document.querySelectorAll("#tp-rows .tp-row").forEach((row) => {
+    const ts = row.querySelector(".ts");
+    ts.textContent = text;
+    ts.style.fontSize = size + "px";
+    ts.style.fontFeatureSettings = ffs;
+    if (row.dataset.vf) {
+      const vals = [...row.querySelectorAll("input[data-axis]")].map((i) => {
+        i.nextElementSibling.textContent = (+i.value).toFixed(i.value % 1 ? 1 : 0);
+        return `"${i.dataset.axis}" ${i.value}`;
+      });
+      ts.style.fontVariationSettings = vals.join(", ");
+    }
+  });
+}
+$("#tp-text").oninput = applyTestPage;
+$("#tp-size").oninput = applyTestPage;
+$("#tp-feats").addEventListener("change", (e) => {
+  const t = e.target.dataset.feat;
+  if (!t) return;
+  tp.feats[t] = e.target.checked;
+  e.target.parentElement.classList.toggle("on", e.target.checked);
+  applyTestPage();
+});
+$("#tp-rows").addEventListener("input", (e) => { if (e.target.dataset.axis) applyTestPage(); });
+$("#tp-rows").addEventListener("change", (e) => {
+  if (!("inst" in e.target.dataset) || e.target.value === "") return;
+  const r = tp.rows[+e.target.dataset.row];
+  const inst = r.facts.variation.instances[+e.target.value];
+  e.target.closest(".tp-row").querySelectorAll("input[data-axis]").forEach((i) => {
+    if (i.dataset.axis in inst.coordinates) i.value = inst.coordinates[i.dataset.axis];
+  });
+  applyTestPage();
+});
+
+/* ---------- inspection ---------- */
+state.fontJson = null;
+async function runInspection(opts = {}) {
+  const fontbakery = opts.fontbakery ?? $("#opt-fb").checked;
+  const btn = $("#run-insp");
+  btn.disabled = true;
+  $("#insp-state").textContent = "running…";
+  $("#insp-result").innerHTML = "";
+  const t0 = performance.now();
+  try {
+    const out = await call("inspect", {
+      role: "target",
+      paths: state.target.map((f) => f.path),
+      facts: state.results.inventory.files,
+      ots: Object.fromEntries(state.target.map((f) => [f.path, f.ots])),
+      fontbakery,
+      fontJson: state.fontJson,
+      refs: state.refs.filter((f) => f.custom).map((f) => f.path),
+      attachments: opts.attachments ?? true,
+      profile: opts.profile,
+    });
+    progress(0, 0);
+    state.results.issues = out.issues;
+    state.report = out;
+    const secs = (performance.now() - t0) / 1000;
+    $("#insp-state").textContent = `done in ${secs >= 60 ? Math.floor(secs / 60) + " min " : ""}${Math.round(secs % 60)} s`;
+    renderInspection(out);
+    renderDownloads();
+    return out;
+  } catch (err) {
+    $("#insp-state").innerHTML = `<span style="color:var(--warn)">failed: ${esc(err.message.split("\n").slice(-2).join(" "))}</span>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function slug(s) { return String(s || "fonts").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
+
+function renderInspection(out) {
+  const r = out.issues, s = r.summary;
+  const base = `${slug(r.title)}-${r.date}`;
+  $("#insp-result").innerHTML = `
+    <div class="insp-sum">
+      <span><b class="fix">${s.by_action.fix}</b> fix</span>
+      <span><b class="confirm">${s.by_action.confirm}</b> confirm</span>
+      <span><b>${s.by_action.ok}</b> harmless</span>
+      <span><b>${s.symptoms}</b> predicted symptoms</span>
+      <span class="muted">${r.checks.length} checks · ${r.inventory.files} files${r.errors.length ? ` · <span style="color:var(--warn)">${r.errors.length} check errors</span>` : ""}</span>
+    </div>
+    <div class="insp-dl">
+      <button class="btn primary" data-get="open">Open report</button>
+      <button class="btn" data-get="html" title="${esc(base)}-report.html">report.html</button>
+      <button class="btn" data-get="xlsx" title="${esc(base)}-report.xlsx">report.xlsx</button>
+      <button class="btn" data-get="json" title="${esc(base)}-issues.json">issues.json</button>
+    </div>
+    ${Object.keys(out.pages || {}).length ? `<div class="insp-dl"><span class="muted" style="font-size:11.5px;align-self:center">attachments:</span>` +
+      Object.keys(out.pages).map((n) => `<button class="btn" data-page="${esc(n)}">${esc(n)}</button>`).join("") + `</div>` : ""}
+    <iframe title="Inspection report" sandbox="allow-scripts"></iframe>`;
+  $("#insp-result iframe").srcdoc = out.html;
+  $("#insp-result").onclick = (e) => {
+    const pg = e.target.closest("[data-page]");
+    if (pg) {
+      const url = URL.createObjectURL(new Blob([out.pages[pg.dataset.page]], { type: "text/html" }));
+      if (e.altKey) { window.open(url, "_blank"); return; }
+      const a = Object.assign(document.createElement("a"), { href: url, download: pg.dataset.page });
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      return;
+    }
+    const b = e.target.closest("[data-get]");
+    if (!b) return;
+    const kind = b.dataset.get;
+    let blob;
+    if (kind === "xlsx") {
+      const bin = Uint8Array.from(atob(out.xlsx), (c) => c.charCodeAt(0));
+      blob = new Blob([bin], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    } else if (kind === "json") {
+      blob = new Blob([JSON.stringify(out.issues, null, 1)], { type: "application/json" });
+    } else {
+      blob = new Blob([out.html], { type: "text/html" });
+    }
+    const url = URL.createObjectURL(blob);
+    if (kind === "open") { window.open(url, "_blank"); setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
+    const a = Object.assign(document.createElement("a"), { href: url, download: `${base}-${kind === "json" ? "issues.json" : "report." + kind}` });
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+}
+$("#run-insp").onclick = () => runInspection();
+
+function renderInventory() {
+  const inv = state.results.inventory;
+  const s = inv.summary;
+  const byPath = Object.fromEntries(state.target.map((f) => [f.path, f]));
+  const rejected = state.target.filter((f) => f.ots !== "ok");
+  $("#t-files").textContent = s.files;
+  $("#t-fams").textContent = s.families;
+  $("#t-mb").textContent = (s.bytes / 1048576).toFixed(1);
+  $("#t-err").textContent = s.errors; $("#t-err").classList.toggle("bad", s.errors > 0);
+  $("#t-ots").textContent = rejected.length; $("#t-ots").classList.toggle("bad", rejected.length > 0);
+
+  const kv = (o) => Object.entries(o).map(([k, v]) => `${k} ${v}`).join(" · ");
+  let html = `<div class="fam-h" style="margin-top:14px"><span class="m">${kv(s.formats)} &nbsp;|&nbsp; ${kv(s.lineages)} &nbsp;|&nbsp; ${s.variable} variable · read in ${(inv.elapsed_ms / 1000).toFixed(1)} s · cache: ${inv.cache.hits} hit, ${inv.cache.stored} new</span></div>`;
+
+  for (const fam of inv.families) {
+    const sets = Object.entries(fam.glyph_sets).map(([fmt, v]) => `${fmt} ${v.map((g) => g[0] + "/" + g[1]).join(", ")}`).join(" · ");
+    html += `<div class="fam"><div class="fam-h"><span class="n">${esc(fam.family)}</span>
+      <span class="m">${fam.styles.length} styles · ${esc(kv(fam.formats))} · ${esc(kv(fam.lineages))} · glyphs/codes ${esc(sets)}</span></div><div class="rows">`;
+    for (const st of fam.styles) {
+      const face = st.files.map((x) => byPath[x.path]).find((f) => f && f.face);
+      const chips = st.files.map((x) => {
+        const f = byPath[x.path];
+        const bad = f && f.ots !== "ok";
+        return `<button class="chip${bad ? " bad" : ""}" data-path="${esc(x.path)}" title="${esc(x.path)}${bad ? "\nBrowser rejected: " + esc(f.ots) : ""}">${esc(x.lineage || "—")} ${esc(x.format)}</button>`;
+      }).join("");
+      html += `<div class="row">
+        <div class="sample${face ? "" : " none"}" style="${face ? `font-family:'${face.face}',var(--mono)` : ""}">${face ? esc(SAMPLE) : "no file of this style loads in the browser"}</div>
+        <div class="meta"><b>${esc(st.subfamily)}</b><br>${st.weight_class ?? "?"}${st.italic ? " · italic" : ""}${st.variable ? " · variable" : ""}</div>
+        <div class="chips">${chips}</div>
+        ${st.duplicates.length ? `<div class="note" style="grid-column:1/-1">Same style twice in ${esc(st.duplicates.join(", "))}</div>` : ""}
+      </div>`;
+    }
+    html += `</div></div>`;
+  }
+  const errs = inv.files.filter((f) => f.error);
+  if (errs.length) {
+    html += `<div class="fam"><div class="fam-h"><span class="n" style="color:var(--warn)">Unreadable</span></div>` +
+      errs.map((f) => `<div class="note">${esc(f.path)} — ${esc(f.error)}</div>`).join("") + `</div>`;
+  }
+  $("#inventory").innerHTML = html;
+}
+
+$("#inventory").addEventListener("click", (e) => {
+  const chip = e.target.closest("[data-path]");
+  if (!chip) return;
+  const facts = state.results.inventory.files.find((f) => f.path === chip.dataset.path);
+  const f = state.target.find((x) => x.path === chip.dataset.path);
+  showDrawer(chip.dataset.path, { browser_load: f && f.ots, ...facts });
+});
+function showDrawer(title, obj) {
+  $("#dr-title").textContent = title;
+  $("#dr-body").textContent = JSON.stringify(obj, null, 1);
+  $("#drawer").hidden = false;
+}
+$("#dr-close").onclick = () => ($("#drawer").hidden = true);
+
+/* ---------- references ---------- */
+async function setRefs(files) {
+  state.refs = files;
+  await Promise.all(files.filter((f) => f.ots === undefined).map(loadFace));
+  await engineReady;
+  const inv = await call("inventory", { role: "reference", files: files.map(({ path, buf }) => ({ path, buf })) });
+  state.results.references = inv;
+  renderRefs();
+  renderDownloads();
+}
+function renderRefs() {
+  const inv = state.results.references;
+  $("#refs").innerHTML = state.refs.map((f) => {
+    const facts = inv.files.find((x) => x.path === f.path) || {};
+    const st = facts.style || {}, g = facts.glyphs || {};
+    const latin = (g.scripts || {}).Latn || 0;
+    return `<div class="ref">
+      <div class="s" style="${f.face ? `font-family:'${f.face}',var(--mono)` : ""}">${esc(SAMPLE)}</div>
+      <div class="m"><b>${esc(st.family || f.path)} ${esc(st.subfamily || "")}</b>${f.custom ? " · yours" : ""} · ${g.count ?? "?"} glyphs · ${g.cmap ?? "?"} codes · Latin ${latin}${f.ots !== "ok" ? ` · <span style="color:var(--warn)">rejected</span>` : ""}</div>
+    </div>`;
+  }).join("");
+}
+async function loadServerFolder(url) {
+  const list = await (await fetch(url.replace(/\/?$/, "/") + "__list.json")).json();
+  const files = list.files.filter(visible);
+  return Promise.all(files.map(async (f) => ({
+    path: list.base + "/" + f,
+    buf: await (await fetch(url.replace(/\/?$/, "/") + f.split("/").map(encodeURIComponent).join("/"))).arrayBuffer(),
+  })));
+}
+
+/* ---------- probes ---------- */
+const sfnt = () => state.target.filter((f) => /\.(otf|ttf)$/i.test(f.path));
+function renderProbeFiles() {
+  const sel = $("#probe-files");
+  const files = sfnt();
+  const seenFam = new Set();
+  const inv = state.results.inventory;
+  const famOf = (p) => ((inv.files.find((f) => f.path === p) || {}).style || {}).family;
+  const pre = new Set();
+  for (const f of files) {
+    const fam = famOf(f.path);
+    if (!seenFam.has(fam) && pre.size < 3) { seenFam.add(fam); pre.add(f.path); }
+  }
+  sel.innerHTML = files.map((f) => `<option value="${esc(f.path)}"${pre.has(f.path) ? " selected" : ""}>${esc(f.path)}</option>`).join("");
+  document.querySelectorAll("[data-probe]").forEach((b) => (b.disabled = !files.length));
+}
+const selectedProbeFiles = () => [...$("#probe-files").selectedOptions].map((o) => o.value);
+
+async function runProbe(kind, paths) {
+  const box = $("#p-" + kind);
+  const out = box.querySelector(".r");
+  const btn = box.querySelector("button");
+  btn.disabled = true;
+  out.innerHTML = "running…";
+  const t0 = performance.now();
+  try {
+    let res;
+    if (kind === "shape") {
+      res = await call("shape", { role: "target", paths: sfnt().map((f) => f.path) });
+      state.results.shape = res;
+      out.innerHTML = `<span class="ok">ok</span> · ${res.files.length} files × ${res.strings.length} strings · ${((performance.now() - t0) / 1000).toFixed(1)} s`;
+    } else {
+      paths = paths || selectedProbeFiles();
+      if (!paths.length) { out.innerHTML = `<span class="bad">select files first</span>`; return; }
+      const { setup, result } = await call("probe", { tool: kind, role: "target", paths });
+      const secs = ((performance.now() - t0) / 1000).toFixed(1);
+      const log = `<details><summary>setup log</summary><pre>${esc(setup.log.join("\n"))}</pre></details>`;
+      if (!result) { out.innerHTML = `<span class="bad">could not start</span> · ${secs} s${log}`; return; }
+      state.results[kind] = result;
+      if (kind === "hyperglot") {
+        out.innerHTML = `<span class="ok">ok</span> · ${result.files.map((f) => `${esc(f.path)}: <b>${f.count ?? "error"}</b>`).join(" · ")} · ${secs} s${log}`;
+      } else {
+        out.innerHTML = `<span class="ok">ok</span> · ${Object.entries(result.counts).map(([k, v]) => `${k} <b>${v}</b>`).join(" · ")} · stubbed: ${esc(result.stubbed.join(", ") || "none")} · ${secs} s${log}`;
+      }
+    }
+    renderDownloads();
+    return res;
+  } catch (err) {
+    out.innerHTML = `<span class="bad">failed</span>: ${esc(err.message)}`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+document.querySelectorAll("[data-probe]").forEach((b) => (b.onclick = () => runProbe(b.dataset.probe)));
+
+/* ---------- compare with terminal ---------- */
+function kindOf(obj) {
+  if (/^(fontqa|trol-checker)\/issues/.test(String(obj.schema || ""))) return "issues";
+  if (obj.families && obj.files) return "inventory";
+  if (obj.strings) return "shape";
+  if (obj.profile) return "fontbakery";
+  if ("hyperglot" in obj) return "hyperglot";
+  return null;
+}
+async function compareWith(obj, name) {
+  const kind = kindOf(obj);
+  let mine = state.results[kind];
+  if (mine && kind === "inventory") {
+    // fields the page adds on top of the core result; the terminal has no browser
+    const { cache, elapsed_ms, browser_load, ...core } = mine;
+    mine = core;
+  }
+  const el = document.createElement("div");
+  el.className = "cmp";
+  $("#cmp").prepend(el);
+  if (!kind) { el.innerHTML = `<div class="t bad">${esc(name)}: not a Font QA result</div>`; return; }
+  if (!mine) { el.innerHTML = `<div class="t"><span class="bad">${esc(name)}</span>: run ${kind} in the browser first</div>`; return; }
+  const res = await call("compare", { a: obj, b: mine });
+  el.innerHTML = `<div class="t">${esc(kind)} · ${esc(name)}: ${res.same ? `<span class="ok">same as terminal</span>` : `<span class="bad">${res.differences} differences</span>`}</div>` +
+    (res.same ? "" : `<table class="diff"><tr><td style="width:40%">where</td><td>terminal</td><td>browser</td></tr>${res.diffs.slice(0, 40).map((d) =>
+      `<tr><td>${esc(d.at)}</td><td>${esc(JSON.stringify(d.a))}</td><td>${esc(JSON.stringify(d.b))}</td></tr>`).join("")}</table>`);
+  return res;
+}
+async function compareUrl(url) {
+  return compareWith(await (await fetch(url)).json(), url.split("/").pop());
+}
+
+/* ---------- downloads ---------- */
+function renderDownloads() {
+  const names = Object.keys(state.results);
+  if (!names.length) return;
+  $("#downloads").innerHTML = names.map((k) => `<button class="btn" data-dl="${k}">${k}.json</button>`).join("");
+}
+$("#downloads").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-dl]");
+  if (!b) return;
+  const blob = new Blob([JSON.stringify(state.results[b.dataset.dl], null, 1)], { type: "application/json" });
+  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `browser-${b.dataset.dl}.json` });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
+/* ---------- drop zones ---------- */
+function dropZone(el, onItems, input) {
+  el.addEventListener("dragover", (e) => { e.preventDefault(); el.classList.add("over"); });
+  el.addEventListener("dragleave", () => el.classList.remove("over"));
+  el.addEventListener("drop", async (e) => {
+    e.preventDefault(); el.classList.remove("over");
+    onItems(await fromDrop(e.dataTransfer));
+  });
+  if (input) {
+    el.addEventListener("click", (e) => { if (e.target === el) input.click(); });
+    input.onchange = () => { onItems(fromInput(input)); input.value = ""; };
+  }
+}
+async function takeFontJson(items) {
+  const fj = items.find((i) => /(^|\/)font\.json$/i.test(i.path));
+  if (!fj) return false;
+  try {
+    state.fontJson = JSON.parse(await fj.file.text());
+    $("#drop-fj").classList.add("has");
+    $("#drop-fj").textContent = `font.json: ${state.fontJson.family || state.fontJson.project || "loaded"}`;
+  } catch (e) { $("#drop-fj").textContent = "font.json could not be read"; }
+  return true;
+}
+dropZone($("#drop"), async (items) => { await takeFontJson(items); await setTarget(await readAll(items)); });
+dropZone($("#drop-fj"), async (items) => { await takeFontJson(items); });
+$("#pick-files").onclick = () => $("#in-files").click();
+$("#pick-dir").onclick = () => $("#in-dir").click();
+$("#in-files").onchange = async () => { const it = fromInput($("#in-files")); await takeFontJson(it); await setTarget(await readAll(it)); $("#in-files").value = ""; };
+$("#in-dir").onchange = async () => { const it = fromInput($("#in-dir")); await takeFontJson(it); await setTarget(await readAll(it)); $("#in-dir").value = ""; };
+dropZone($("#drop-ref"), async (items) => {
+  const mine = (await readAll(items)).map((f) => ({ ...f, path: "yours/" + f.path.split("/").pop(), custom: true }));
+  await setRefs([...state.refs.filter((r) => !mine.some((m) => m.path === r.path)), ...mine]);
+}, $("#in-ref"));
+dropZone($("#drop-json"), async (items) => {
+  for (const it of items.filter((i) => /\.json$/i.test(i.path))) {
+    compareWith(JSON.parse(await it.file.text()), it.path.split("/").pop());
+  }
+}, $("#in-json"));
+document.addEventListener("dragover", (e) => e.preventDefault());
+document.addEventListener("drop", (e) => e.preventDefault());
+
+/* ---------- start ---------- */
+(async () => {
+  try { await setRefs(await loadServerFolder("/refs/")); }
+  catch (err) { $("#refs").innerHTML = `<p class="note">No built-in reference fonts here. Drop your own reference font above, or run locally with ./serve.sh and FONTQA_REFS.</p>`; }
+  const load = new URLSearchParams(location.search).get("load");
+  if (load) {
+    const parts = await Promise.all(load.split(",").map((u) => loadServerFolder("/" + u.replace(/^\//, ""))));
+    await setTarget(parts.flat().sort((a, b) => a.path.localeCompare(b.path)));
+  }
+})();
+
+window.checker = { state, call, runProbe, compareUrl, setTarget, loadServerFolder, runInspection };
+</script>
+</body>
+</html>

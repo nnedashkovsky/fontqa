@@ -1,0 +1,7 @@
+# Terminal run (./check.sh). The browser page needs nothing installed.
+fonttools[woff]==4.56.0
+uharfbuzz==0.39.0
+openpyxl==3.1.5
+hyperglot==0.8.1
+# optional: ./check.sh inspect --fontbakery
+# fontbakery==0.12.7

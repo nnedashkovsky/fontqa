@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.DS_Store
+_site/
+# reports and fonts stay out of the repository
+*.otf
+*.ttf
+*.woff
+*.woff2
+*.glyphs
+reports/
