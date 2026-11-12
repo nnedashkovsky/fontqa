@@ -221,7 +221,7 @@ def render_page(cards, registry, tool_url="../web/"):
     return (head + f"""<div class="wrap">
 <header><div><div class="kicker">Font QA</div><h1>Rules</h1>
 <div class="sub">{len(checks)} checks · {done} explained in full · <a href="{e(tool_url)}">open the tool</a></div></div>
-<div class="ctl">{levels.SWITCH}<button class="theme" id="theme">auto</button></div></header>
+<div class="ctl">{levels.SWITCH}<button class="theme" id="theme">auto</button></div></header>{levels.panel("rules")}
 <div class="filters"><input id="q" type="search" placeholder="Search rules: name ID 1, fsSelection, Word…"></div>
 <div class="layout"><nav>{''.join(nav)}</nav><main>{''.join(body)}</main></div>
 </div>""" + PAGE_SCRIPT + levels.SCRIPT + "</body></html>")

@@ -57,7 +57,7 @@ def render(r, extra="", attachments=()):
     <div><div class="v">{s['symptoms']}</div><div class="k">predicted symptoms</div></div>
     <div class="ctl">{levels.SWITCH}<button class="theme" id="theme">auto</button></div>
   </div>
-</header>""")
+</header>""" + levels.panel("report"))
 
     # ---- scope
     inv = r["inventory"]
