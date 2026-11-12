@@ -119,7 +119,7 @@ def validate(cards, registry):
             notes.append(f"{cid}: title differs from the code ({c.title!r})")
     without = sorted(set(checks) - set(cards))
     if without:
-        notes.append(f"{len(without)} of {len(checks)} checks have no card yet")
+        errors.append(f"{len(without)} checks have no card: {', '.join(without)}")
     return errors, notes
 
 

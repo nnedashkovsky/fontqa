@@ -101,7 +101,7 @@ def _signature(v):
 
 
 @check(id="lineage.copies_agree", category="F", scope="package",
-       title="Copies of one style agree across lineages and formats",
+       title="Copies of one style agree across lines and formats",
        classification="Lineage differences / Same style / Design data",
        what="Desktop, App and Web copies of a style (TTF, OTF, WOFF, WOFF2) have the same glyph set, cmap, "
             "advance widths, outlines, GSUB/GPOS/GDEF and vertical metrics; names, fsType, hinting, legacy kern "

@@ -170,7 +170,7 @@ def x_cap_height(v):
        title="Unicode range bits match the character set",
        classification="Table values / OS/2 / ulUnicodeRange",
        what="ulUnicodeRange bits equal the ones fontTools derives from the cmap",
-       basis="OpenType spec, OS/2.ulUnicodeRange; Windows and Office use the bits for font fallback "
+       basis="OpenType spec, OS/2.ulUnicodeRange; Windows and Office use the bits for font fallback. "
              "Some clients ask for bits off on purpose — then confirm.",
        fix="Let the export compute the bits, or record why they differ.", severity="low", action="confirm")
 def unicode_ranges(v):
@@ -238,7 +238,7 @@ def post_format(v):
 
 
 @check(id="tables.hinting", category="F", scope="file", applies=lambda v: v.facts.get("outline") == "glyf",
-       title="TrueType hinting and dropout control",
+       title="TrueType hinting tables are present",
        classification="Table values / Hinting / fpgm, prep, cvt",
        what="TrueType fonts carry hinting tables, or at least a prep program that turns on dropout control",
        basis="Without hinting, Windows GDI renders small sizes unevenly; without dropout control thin "
