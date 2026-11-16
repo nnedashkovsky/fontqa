@@ -44,7 +44,7 @@ def main(out=os.path.join(HERE, "_site")):
     with open(os.path.join(out, "rules", "index.html"), "w", encoding="utf-8") as f:
         f.write(rules.render_page(cards, registry))
     open(os.path.join(out, ".nojekyll"), "w").close()
-    print(f"{out}: {len(files)} core files")
+    print(f"{len(files)} core files, {len(md)} rule cards → {out}")
 
 
 if __name__ == "__main__":

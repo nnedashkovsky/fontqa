@@ -83,14 +83,17 @@ def run(paths, profile="release", ots=None, fontbakery=None, font_json=None, fac
     outline_checks = [c for c in checks if c.scope == "outline"]
     sharing = defaultdict(list)
     assign_outline_keys(views)
+    # a variable font never shares its group with a static one, even when the default master's
+    # outlines are byte-identical to a static font: the variable checks must still see it
+    share_key = lambda x: (x.outline_key, bool(x.variable))
     for v in views:
         if v.ok:
-            sharing[v.outline_key].append(v)
+            sharing[share_key(v)].append(v)
             v.release()
     # the first member of each group must be an sfnt/WOFF whenever there is one
     for key, group in sharing.items():
         group.sort(key=lambda x: x.fmt == "WOFF2")
-    views_order = sorted(views, key=lambda x: not (x.ok and sharing[x.outline_key][0] is x))
+    views_order = sorted(views, key=lambda x: not (x.ok and sharing[share_key(x)][0] is x))
     for n, v in enumerate(views_order):
         if progress:
             progress(n, len(views), v.rel)
@@ -103,7 +106,7 @@ def run(paths, profile="release", ots=None, fontbakery=None, font_json=None, fac
                 status[c.id][v.rel] = "error"
             else:
                 record(c, hs, [v.rel], [v.rel])
-        group = sharing.get(v.outline_key) if v.ok else None
+        group = sharing.get(share_key(v)) if v.ok else None
         if group and group[0] is v:
             members = [x.rel for x in group]
             for c in outline_checks:

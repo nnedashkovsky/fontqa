@@ -9,3 +9,4 @@ _site/
 *.woff2
 *.glyphs
 reports/
+.pytest_cache/

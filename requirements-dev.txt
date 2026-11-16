@@ -1,0 +1,4 @@
+# Tests: python -m pytest tests  ·  python tests/browser_parity.py
+-r requirements.txt
+pytest>=8
+playwright>=1.48

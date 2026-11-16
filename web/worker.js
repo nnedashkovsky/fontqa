@@ -4,7 +4,7 @@
    streams {type:"progress"} while it works. Fonts are written into Pyodide's
    in-memory file system under /in/<role>/<path>, so the Python core sees the
    same relative paths the terminal run sees. Facts are cached in IndexedDB by
-   sha256 + core version: a second look at the same delivery skips parsing.
+   sha256 + a fingerprint of core/facts.py: a second look at the same delivery skips parsing.
 
    harfbuzzjs is loaded here too and exposed as self.hb; core/hbshim.py turns
    it into `uharfbuzz` for Python. */
@@ -126,7 +126,7 @@ const commands = {
   async inventory({ role, files }) {
     writeFiles(role, files);
     const shas = await Promise.all(files.map((f) => sha256(f.buf)));
-    const keys = shas.map((s) => `${env.core}:${s}`);
+    const keys = shas.map((s) => `${env.facts_rev}:${s}`);
     const hits = await cacheGet(keys);
     const cached = {};
     shas.forEach((s, i) => { if (hits[keys[i]]) cached[s] = hits[keys[i]]; });
@@ -141,7 +141,7 @@ json.dumps(inventory.build(facts, role=a["role"]), ensure_ascii=False, sort_keys
     const fresh = inv.files.filter((f) => !f.error && !cached[f.sha256]);
     await cachePut(fresh.map((f) => {
       const { path, lineage, ...rest } = f;
-      return [`${env.core}:${f.sha256}`, rest];
+      return [`${env.facts_rev}:${f.sha256}`, rest];
     }));
     inv.cache = { hits: Object.keys(cached).length, stored: fresh.length };
     return inv;

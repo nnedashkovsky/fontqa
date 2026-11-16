@@ -24,10 +24,22 @@ from .facts import FONT_EXTENSIONS, file_facts
 LINEAGES = {"app": "App", "desktop": "Desktop", "web": "Web"}
 
 
+def facts_rev():
+    """A fingerprint of the code that reads fonts into facts.
+
+    The browser caches facts per font; keyed by this, a change to facts.py makes
+    every cached entry stale by itself, whether or not the version was bumped.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(here, "facts.py"), "rb") as fh:
+        return hashlib.sha256(fh.read()).hexdigest()[:12]
+
+
 def environment():
     return {
         "tool": "Font QA",
         "core": VERSION,
+        "facts_rev": facts_rev(),
         "fontTools": fontTools.version,
         "python": sys.version.split()[0],
         "env": "browser" if sys.platform == "emscripten" else "terminal",
