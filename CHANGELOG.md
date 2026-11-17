@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 — 2026-11-17
+
+- Languages: the report has a Languages section (and an xlsx sheet) listing the languages each style supports — all everyday letters, upper and lower case — and those one to three letters short, with the letters to add. Data: Unicode CLDR 49 exemplar characters and territory population, 248 languages and scripts, built by `scripts/build_languages.py` into `core/data/languages.json` (104 KB). `issues.json` has `languages`.
+- New check `charset.languages_almost` (Designer, Harmless): languages with a million speakers or more that are one to three letters short. 56 checks, 21 at the Designer level.
+- A letter without its own glyph counts when its base and combining accent are there and the font has a `mark` feature.
+- Fixed: a check with only a harmless finding was listed under Passed and Flagged at once.
+
 ## 0.4.0 — 2026-11-16
 
 - Summary table: **Flagged** (checks that gave findings, with links to them) and **Passed** next to each other; checks not performed or not applicable are listed under the table. `summary.by_category[*].passed` and `.flagged` are new; `confirmed` stays one version as an alias of `passed`.

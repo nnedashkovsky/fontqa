@@ -146,6 +146,8 @@ CASES = {
     # character set and glyphs
     "charset.family_same": lambda d: fk.family(d, per_style={"Bold": {"chars": [c for c in W if c != 0x20AC]}}),
     "charset.store_minimum": lambda d: one(d, chars=[c for c in W if c != 0x20AC]),
+    # a Windows-1252 font lacks ő ű: Hungarian is one step away
+    "charset.languages_almost": lambda d: one(d),
     "glyphs.empty_mapped": lambda d: one(d, empty={0x41}),
     "glyphs.notdef": lambda d: one(d, shapes={".notdef": lambda pen: None}),
     "glyphs.spaces": lambda d: one(d, widths={0xA0: 400}),
@@ -237,8 +239,10 @@ def clean(tmp_path_factory):
 
 
 # Harmless by definition and unavoidable in a font built by fontTools: HVAR has no side-bearing maps.
-ALLOWED_ON_CLEAN = {("vf.var_tables", "HVAR without side-bearing maps")}
-NEED_INPUT = {"external.fontbakery", "release.font_json"}
+# The language hint is true of any Latin font that is not complete (here: Windows-1252 lacks ő ű).
+ALLOWED_ON_CLEAN = {("vf.var_tables", "HVAR without side-bearing maps"),
+                    ("charset.languages_almost", "languages one step away")}
+NEED_INPUT = {"external.fontbakery", "release.font_json", "charset.languages_almost"}
 
 
 def test_clean_set_is_silent(clean):
@@ -329,7 +333,7 @@ def test_partial_run_is_marked_everywhere(tmp_path):
     paths = inventory.collect([str(tmp_path)])
     result = run(paths, preset="differences", ots={rel: "ok" for _, rel in paths})
     assert result["scope"]["run"] == 6 and result["scope"]["partial"]
-    assert "Partial run: 6 of 55 checks" in render(result)
+    assert "Partial run: 6 of 56 checks" in render(result)
     assert render_xlsx(result)[:2] == b"PK"
 
 
@@ -361,3 +365,65 @@ def test_partial_run_reports_no_symptoms_of_checks_that_did_not_run(tmp_path):
 def test_check_order_does_not_depend_on_import_order():
     ids = [c.id for c in load_all()]
     assert ids == sorted(ids, key=lambda i: (next(c.category for c in load_all() if c.id == i), i))
+
+
+# ------------------------------------------------------------------ languages (CLDR)
+
+def test_languages_supported_almost_and_out_of_reach():
+    from core import languages as lg
+    polish = set(map(ord, "aąbcćdeęfghijklłmnńoóprsśtuwyzźż" + "AĄBCĆDEĘFGHIJKLŁMNŃOÓPRSŚTUWYZŹŻ"))
+    full = lg.coverage(polish)
+    assert "pl" in {x["tag"] for x in full["supported"]}
+    short = lg.coverage(polish - {ord("ł"), ord("Ł")})
+    assert "pl" not in {x["tag"] for x in short["supported"]}
+    near = {a["lang"]["tag"]: a for a in short["almost"]}
+    assert near["pl"]["letters"] == 1 and set(near["pl"]["missing"]) == {"ł", "Ł"}
+    far = lg.coverage(set(range(0x20, 0x7F)))
+    assert "pl" not in {x["tag"] for x in far["supported"]} | {a["lang"]["tag"] for a in far["almost"]}, "eight letters missing"
+    assert "en" in {x["tag"] for x in far["supported"]}
+
+
+def test_a_composed_letter_counts_only_with_a_mark_feature():
+    from core import languages as lg
+    base = set(range(0x20, 0x7F)) | {0x301}  # ASCII and a combining acute
+    without = {a["lang"]["tag"] for a in lg.coverage(base, compose=False)["almost"]}
+    with_mark = lg.coverage(base | {0x300, 0x302, 0x303, 0x308, 0x327, 0x30C, 0x30A}, compose=True)
+    assert "es" not in {x["tag"] for x in lg.coverage(base, compose=False)["supported"]}
+    assert "es" in {x["tag"] for x in with_mark["supported"]} | {a["lang"]["tag"] for a in with_mark["almost"]}
+
+
+def test_compact_encoding_round_trips():
+    from core import languages as lg
+    units = ["a", "b", "c", "d", "e", "ß", "{x}", "\u0301", " ", "ab", "가", "각", "갂", "갃", "간", "\\"]
+    assert lg.decode_units(lg.encode_units(units)) == units
+
+
+def test_cldr_unicode_set_parser():
+    sys.path.insert(0, os.path.join(HERE, "..", "scripts"))
+    from build_languages import parse_unicode_set
+    assert parse_unicode_set("[a ą b-d {ae} \\u0301 é]") == ["a", "ą", "b", "c", "d", "ae", "\u0301", "é"]
+    assert parse_unicode_set("[ぁァあア ー]") == list("ぁァあア") + ["ー"]
+
+
+def test_language_data_is_shipped_with_its_licence():
+    from core import languages as lg
+    db = lg.database()
+    assert "CLDR" in db["source"] and len(db["languages"]) > 200
+    with open(os.path.join(HERE, "..", "core", "data", "LICENSE-CLDR.txt"), encoding="utf-8") as fh:
+        assert "UNICODE LICENSE" in fh.read().upper()
+
+
+def test_languages_section_is_in_the_report_and_the_workbook(tmp_path):
+    from core.report_html import render
+    from core.report_xlsx import render as render_xlsx
+    import io, openpyxl
+    fk.family(tmp_path)
+    result = inspect(tmp_path)
+    langs = result["languages"]
+    assert langs["groups"] and all(t in langs["names"] for g in langs["groups"] for t in g["supported"])
+    assert len(langs["groups"]) == 1, "Regular and Bold (and their web copies) cover the same languages"
+    assert "<h2>Languages</h2>" in render(result)
+    wb = openpyxl.load_workbook(io.BytesIO(render_xlsx(result)))
+    assert "Languages" in wb.sheetnames
+    statuses = {row[4] for row in wb["Languages"].iter_rows(min_row=2, values_only=True)}
+    assert {"supported", "one step away"} <= statuses

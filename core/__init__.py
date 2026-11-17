@@ -8,4 +8,4 @@ in their names: `hbshim` (browser stand-in for uharfbuzz) and `browser`
 the browser output is compared against.
 """
 
-VERSION = "0.4.0"
+VERSION = "0.5.0"

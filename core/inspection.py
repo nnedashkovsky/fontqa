@@ -12,6 +12,7 @@ on the light caches (cmap, widths). Every (check, file) pair ends with a status
 """
 
 import datetime
+import json
 import inspect as pyinspect  # stdlib; this module is core.inspection
 from collections import Counter, defaultdict
 
@@ -184,6 +185,7 @@ def run(paths, profile="release", ots=None, fontbakery=None, font_json=None, fac
         "matrix": _matrix(checks, views, status),
         "fonts": _fonts_table(views),
         "coverage": _coverage(views),
+        "languages": _languages(views),
         "errors": errors,
     }
     result["summary"] = _summary(result)
@@ -381,6 +383,31 @@ def _coverage(views):
     return out
 
 
+def _languages(views):
+    """Languages each style supports or nearly supports; styles with the same answer share one group."""
+    from . import languages as lg
+    from .checks.charset import language_view
+    groups, used = {}, {}
+    for v in views:
+        if not (v.ok and v.is_sfnt):
+            continue
+        cov = language_view(v)
+        supported = sorted(x["tag"] for x in cov["supported"])
+        almost = sorted(({"tag": a["lang"]["tag"], "missing": a["missing"]} for a in cov["almost"]), key=lambda a: a["tag"])
+        key = json.dumps([supported, almost], ensure_ascii=False)
+        label = f"{v.family} {v.subfamily}" + (" (variable)" if v.variable else "")
+        groups.setdefault(key, {"styles": set(), "supported": supported, "almost": almost})["styles"].add(label)
+        for x in cov["supported"] + [a["lang"] for a in cov["almost"]]:
+            used[x["tag"]] = x
+        v.release()
+    db = lg.database()
+    out = sorted(({"styles": sorted(g["styles"]), "supported": g["supported"], "almost": g["almost"]} for g in groups.values()),
+                 key=lambda g: g["styles"])
+    return {"source": db["source"], "min_speakers_for_findings": lg.ALMOST_MIN_SPEAKERS, "groups": out,
+            "names": {t: {"name": x["name"], "script": x["script"], "speakers": x["speakers"]} for t, x in sorted(used.items())},
+            "scripts": db["scripts"]}
+
+
 def _summary(result):
     table = {}
     for cat in CATEGORIES:
@@ -391,7 +418,9 @@ def _summary(result):
                 row["symptoms"] += len(i["symptoms"])
         row["checks"] = sum(1 for c in result["checks"] if c["category"] == cat)
         # passed: ran on some file and found nothing; flagged: gave findings (with their numbers)
-        row["passed"] = [c["title"] for c in result["checks"] if c["category"] == cat
+        # (a harmless finding is a finding: that check is flagged, not passed)
+        with_issues = {i["check"] for i in result["issues"]}
+        row["passed"] = [c["title"] for c in result["checks"] if c["category"] == cat and c["id"] not in with_issues
                          and c["files_checked"] and not c["files_flagged"] and not c["files_error"]]
         row["confirmed"] = row["passed"]  # the name before 0.4; drop one version later
         row["flagged"] = []

@@ -78,7 +78,7 @@ class Check:
 # Everything else is file-level and runs at the engineer level only.
 DESIGNER = frozenset({
     # character set and family
-    "charset.family_same", "charset.store_minimum", "glyphs.empty_mapped", "glyphs.notdef",
+    "charset.family_same", "charset.store_minimum", "charset.languages_almost", "glyphs.empty_mapped", "glyphs.notdef",
     # outlines
     "outline.extrema", "outline.zero_length", "outline.fractional",
     # metrics

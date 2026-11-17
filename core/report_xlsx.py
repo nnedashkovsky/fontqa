@@ -158,6 +158,22 @@ def render(r):
                 + [c["next_level"] or "complete", " ".join(c["missing_for_next"])] for c in r["coverage"]],
                [44, 20, 18] + [14] * len(names) + [16, 80], wrap=(len(names) + 5,))
 
+    # ---- Languages
+    langs = r.get("languages") or {}
+    if langs.get("groups"):
+        names = langs["names"]
+        rows = []
+        for g in langs["groups"]:
+            styles = "; ".join(g["styles"])
+            for tag in sorted(g["supported"], key=lambda t: -names[t]["speakers"]):
+                rows.append([styles, names[tag]["name"], langs["scripts"].get(names[tag]["script"], names[tag]["script"]),
+                             names[tag]["speakers"], "supported", ""])
+            for a in sorted(g["almost"], key=lambda a: -names[a["tag"]]["speakers"]):
+                rows.append([styles, names[a["tag"]]["name"], langs["scripts"].get(names[a["tag"]]["script"], names[a["tag"]]["script"]),
+                             names[a["tag"]]["speakers"], "one step away", " ".join(a["missing"])])
+        _sheet(wb, "Languages", ["Styles", "Language", "Script", "Speakers (est.)", "Status", "Letters to add"], rows,
+               [50, 28, 16, 16, 14, 30], wrap=(1,))
+
     # ---- Legend
     ws = wb.create_sheet("Legend")
     for axis, rows in LEGEND.items():

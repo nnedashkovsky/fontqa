@@ -102,6 +102,33 @@ def notdef(v):
                   summary=".notdef has no outline", severity="low")
 
 
+def language_view(v):
+    """Language coverage of one font, computed once: marks positioned by GPOS let a base and its accent stand for a letter."""
+    from .. import languages
+    compose = "mark" in ((v.facts.get("layout") or {}).get("GPOS") or {}).get("features", [])
+    return v._memo(("languages", compose), lambda: languages.coverage(v.cmap, compose))
+
+
+@check(id="charset.languages_almost", category="C", scope="file", applies=sfnt,
+       title="Languages one step away",
+       classification="Character set / Languages / Almost supported",
+       what="no language with a million speakers or more is short of just one to three letters",
+       basis="Unicode CLDR lists the letters each language needs in everyday writing; a font that has "
+             "all but a few of them is usually one design session away from supporting it.",
+       fix="Add the missing letters if you want the language supported, or leave it out of what you promise.",
+       severity="low", action="ok")
+def languages_almost(v):
+    from .. import languages
+    near = [a for a in language_view(v)["almost"] if a["lang"]["speakers"] >= languages.ALMOST_MIN_SPEAKERS]
+    if near:
+        near.sort(key=lambda a: -a["lang"]["speakers"])
+        yield Hit(key="languages one step away", expected="none, or the letters added",
+                  measured=f"{len(near)} languages: " + ", ".join(f"{a['lang']['name']} ({a['letters']})" for a in near[:8])
+                  + (" …" if len(near) > 8 else ""),
+                  glyphs=[f"{a['lang']['name']}: add {' '.join(a['missing'])}" for a in near],
+                  summary=f"{len(near)} languages are one to three letters short")
+
+
 @check(id="glyphs.empty_mapped", category="C", scope="outline", applies=sfnt,
        title="Encoded characters have outlines",
        classification="Glyphs / Outlines / Empty glyphs",
