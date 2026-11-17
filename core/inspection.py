@@ -16,7 +16,7 @@ import inspect as pyinspect  # stdlib; this module is core.inspection
 from collections import Counter, defaultdict
 
 from . import VERSION, inventory, rules
-from .checks import CATEGORIES, REGISTRY, families, in_level, load_all
+from .checks import CATEGORIES, REGISTRY, families, in_level, load_all, preset_prefixes
 from .checks.charset import coverage
 from .fontview import FontView, assign_outline_keys
 
@@ -27,10 +27,11 @@ CELL = {"fix": "×", "confirm": "△", "ok": "○", "pass": "○", "n/a": "—",
 
 
 def run(paths, profile="release", ots=None, fontbakery=None, font_json=None, facts=None,
-        progress=None, today=None, only=None, level="engineer"):
+        progress=None, today=None, only=None, level="engineer", preset=None):
     """Inspect (abs path, relpath) pairs; returns the issues.json dict.
 
     `only` is a list of check-id prefixes ("vf.", "names.gdi_length") to run a subset.
+    `preset` names a selection from checks.PRESETS; it cannot be combined with `only`.
     `level` is "designer" (the drawing checks) or "engineer" (everything); see core/levels.py.
     """
     load_all()
@@ -47,8 +48,14 @@ def run(paths, profile="release", ots=None, fontbakery=None, font_json=None, fac
     if level == "designer":
         fontbakery = font_json = None  # file-level inputs; their checks do not run
         ctx = {"fontbakery": None, "font_json": None, "ots": ots}
-    checks = [c for c in REGISTRY if profile in c.profiles and in_level(c, level)
-              and (not only or any(c.id.startswith(p) for p in only))]
+    if preset and only:
+        raise ValueError("preset and only cannot be combined")
+    if preset:
+        only = preset_prefixes(preset)
+    available = [c for c in REGISTRY if profile in c.profiles and in_level(c, level)]
+    checks = [c for c in available if not only or any(c.id.startswith(p) for p in only)]
+    if only and not checks:
+        raise ValueError(f"no check of the {level} level matches {', '.join(only)}")
     status = defaultdict(dict)
     hits, errors = [], []
 
@@ -151,7 +158,7 @@ def run(paths, profile="release", ots=None, fontbakery=None, font_json=None, fac
 
     issues, symptoms = _aggregate(hits, today)
     if level == "engineer":
-        menus, symptoms = _menus(views, issues, symptoms)
+        menus, symptoms = _menus(views, issues, symptoms, {c.id for c in checks})
     else:  # the menu simulation reads names and tables: an engineer's view
         menus = None
     result = {
@@ -160,6 +167,9 @@ def run(paths, profile="release", ots=None, fontbakery=None, font_json=None, fac
         "date": today or datetime.date.today().isoformat(),
         "profile": profile,
         "level": level,
+        # a partial run says so in every report: its counts are not comparable with a full one
+        "scope": {"preset": preset, "selection": list(only) if only and not preset else None,
+                  "run": len(checks), "available": len(available), "partial": len(checks) < len(available)},
         "environment": inventory.environment(),
         "options": {"fontbakery": bool(fontbakery), "ots": "provided" if ots else None,
                     "font_json": bool(font_json)},
@@ -246,14 +256,15 @@ def _aggregate(hits, today):
     return rows, symptoms
 
 
-def _menus(views, issues, generic):
+def _menus(views, issues, generic, ran):
     """Simulated menus, and symptoms: concrete ones from the simulation, generic ones for the rest."""
     from . import menus as mn
     try:
         sim = mn.simulate(views)
     except Exception as exc:  # a simulation problem must not cost the report
         return {"error": f"{type(exc).__name__}: {exc}"}, generic
-    concrete = mn.symptoms(sim, issues)
+    # a symptom belongs to a check: when that check did not run (a partial run), its symptom is not reported
+    concrete = [s for s in mn.symptoms(sim, issues) if s["check"] in ran]
     covered = {s["check"] for s in concrete}
     by_id = {i["id"]: i for i in issues}
     keep = [s for s in generic if by_id[s["parent"]]["check"] not in covered]
@@ -379,8 +390,19 @@ def _summary(result):
                 row[i["action"]] += 1
                 row["symptoms"] += len(i["symptoms"])
         row["checks"] = sum(1 for c in result["checks"] if c["category"] == cat)
-        row["confirmed"] = [c["title"] for c in result["checks"] if c["category"] == cat
-                            and c["files_checked"] and not c["files_flagged"] and not c["files_error"]]
+        # passed: ran on some file and found nothing; flagged: gave findings (with their numbers)
+        row["passed"] = [c["title"] for c in result["checks"] if c["category"] == cat
+                         and c["files_checked"] and not c["files_flagged"] and not c["files_error"]]
+        row["confirmed"] = row["passed"]  # the name before 0.4; drop one version later
+        row["flagged"] = []
+        for c in result["checks"]:
+            if c["category"] != cat:
+                continue
+            found = [i for i in result["issues"] if i["check"] == c["id"]]
+            if found:
+                worst = min((i["action"] for i in found), key=ACTION_ORDER.get)
+                row["flagged"].append({"check": c["id"], "title": c["title"], "issues": [i["id"] for i in found],
+                                       "action": worst})
         table[cat] = row
     counts = Counter((i["action"], i["severity"]) for i in result["issues"])
     return {"by_category": table, "issues": len(result["issues"]), "symptoms": len(result["symptoms"]),

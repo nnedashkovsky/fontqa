@@ -40,6 +40,17 @@ def e(s):
     return html.escape("" if s is None else str(s))
 
 
+def scope_text(r):
+    """'Partial run: 6 of 20 checks — preset Differences between styles', or '' for a full run."""
+    sc = r.get("scope") or {}
+    if not sc.get("partial"):
+        return ""
+    from .checks import PRESETS
+    how = (f"preset {PRESETS[sc['preset']]['title']}" if sc.get("preset") in PRESETS
+           else "custom selection: " + ", ".join(sc.get("selection") or []))
+    return f"Partial run: {sc['run']} of {sc['available']} checks — {how}"
+
+
 def render(r, extra="", attachments=()):
     """`extra`: HTML sections inserted before Inputs (the specimen); `attachments`: file names to link."""
     s = r["summary"]
@@ -50,7 +61,7 @@ def render(r, extra="", attachments=()):
     parts.append(f"""<div class="wrap">
 <header>
   <div><div class="kicker">Inspection report</div><h1>{e(r['title'] or 'Fonts')}</h1>
-  <div class="sub">{e(r['date'])} · {e(levels.name(level))} level · {r['inventory']['files']} files · Font QA core {e(r['environment']['core'])}</div></div>
+  <div class="sub">{e(r['date'])} · {e(levels.name(level))} level{(" · " + e(scope_text(r))) if scope_text(r) else ""} · {r['inventory']['files']} files · Font QA core {e(r['environment']['core'])}</div></div>
   <div class="tally">
     <div><div class="v fix">{s['by_action']['fix']}</div><div class="k">fix</div></div>
     <div><div class="v confirm">{s['by_action']['confirm']}</div><div class="k">confirm</div></div>
@@ -61,7 +72,9 @@ def render(r, extra="", attachments=()):
 </header>""" + levels.panel(level, interactive=False) + (
         '<p class="lvnote">Made at the Designer level: the drawing checks. File-level checks — names, tables, '
         'validators, lineages, release, menus — were not run; run again at the Engineer level for them.</p>'
-        if level == "designer" else ""))
+        if level == "designer" else "") + (
+        f'<p class="note partial">{e(scope_text(r))}. Counts and the lists of passed checks cover only these checks, '
+        f'so this report is not comparable with a full one.</p>' if scope_text(r) else ""))
 
     # ---- scope
     inv = r["inventory"]
@@ -102,13 +115,22 @@ def render(r, extra="", attachments=()):
         b = s["by_category"][cat]
         if not b["checks"]:
             continue
-        confirmed = b["confirmed"]
+        passed = b.get("passed", b.get("confirmed", []))
+        flagged = "<br>".join(
+            f"<span class='fl {e(x['action'])}'>{e(x['title'])}</span> "
+            + " ".join(f"<a href='#{e(i)}'>{e(i)}</a>" for i in x["issues"]) for x in b.get("flagged", []))
         rows.append(f"""<tr><td><b>{e(cat)}</b> {e(name)}</td><td class="n fix">{b['fix'] or ''}</td><td class="n confirm">{b['confirm'] or ''}</td>
 <td class="n">{b['ok'] or ''}</td><td class="n">{b['symptoms'] or ''}</td><td class="n muted">{b['checks']}</td>
-<td class="ok-list">{e('; '.join(confirmed)) if confirmed else '<span class="muted">—</span>'}</td></tr>""")
+<td class="flag-list">{flagged or '<span class="muted">—</span>'}</td>
+<td class="ok-list">{e('; '.join(passed)) if passed else '<span class="muted">—</span>'}</td></tr>""")
+    skipped = ""
+    if s["not_performed"]:
+        skipped += f"<p class='muted'><b>Not performed</b> (input not given): {e('; '.join(s['not_performed']))}.</p>"
+    if s.get("not_applicable"):
+        skipped += f"<p class='muted'><b>Not applicable</b> to these files: {e('; '.join(s['not_applicable']))}.</p>"
     parts.append(f"""<section><h2>Summary of results</h2>
-<div class="scroll"><table class="matrix"><tr><th>Category</th><th>Fix</th><th>Confirm</th><th>Harmless</th><th>Symptoms</th><th>Checks</th><th>Confirmed normal</th></tr>
-{''.join(rows)}</table></div></section>""")
+<div class="scroll"><table class="matrix"><tr><th>Category</th><th>Fix</th><th>Confirm</th><th>Harmless</th><th>Symptoms</th><th>Checks</th><th>Flagged</th><th>Passed</th></tr>
+{''.join(rows)}</table></div>{skipped}</section>""")
 
     # ---- issues
     filt = "".join(f'<button data-f="action:{a}">{ACTION_LABEL[a]}</button>' for a in ("fix", "confirm", "ok"))
@@ -201,7 +223,7 @@ def _card(i, r):
     basis = f"<tr><th>Basis</th><td>{e(i['basis'])}</td></tr>" if rule.get("why") else ""
     search = " ".join([i["id"], i["summary"], i["check"], i["classification"], " ".join(files), " ".join(glyphs[:200])]).lower()
     return f"""<article class="issue a-{i['action']}" id="{e(i['id'])}" data-action="{i['action']}" data-severity="{i['severity']}" data-category="{i['category']}" data-search="{e(search)}">
-<div class="ih"><span class="no">{e(i['id'])}</span><span class="tag {i['action']}">{ACTION_LABEL[i['action']]}</span><span class="tag sev-{i['severity']}">{i['severity'].title()}</span><span class="j">{e(i['judgment'])}</span><span class="cls l3">{e(i['category'])} · {e(i['classification'])} · <a href="{RULES_URL}#{e(i['check'])}"><code>{e(i['check'])}</code></a></span><a class="rl" href="{RULES_URL}#{e(i['check'])}">rule</a></div>
+<div class="ih"><span class="no">{e(i['id'])}</span><span class="tag {i['action']}">{ACTION_LABEL[i['action']]}</span><span class="tag sev-{i['severity']}">{i['severity'].title()}</span><span class="j">{e(i['judgment'])}</span><span class="cls l3">{e(i['category'])} · {e(i['classification'])} · <a target="_blank" rel="noopener" href="{RULES_URL}#{e(i['check'])}"><code>{e(i['check'])}</code></a></span><a class="rl" target="_blank" rel="noopener" href="{RULES_URL}#{e(i['check'])}">rule</a></div>
 <h3>{e(i['summary'])}</h3>
 <table class="kv">
 {why}
@@ -258,6 +280,8 @@ table{border-collapse:collapse;width:100%}
 .matrix td,.data td{padding:7px 10px;border-top:1px solid var(--line);vertical-align:top;font-size:12.5px}
 td.n{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums;width:70px}
 .ok-list{font-size:11.5px;color:var(--muted)}
+.flag-list{font-size:12px;min-width:220px}.flag-list .fl{font-weight:600}.flag-list .fl.fix{color:var(--bad)}.flag-list .fl.confirm{color:var(--warn)}.flag-list .fl.ok{color:var(--accent)}
+.flag-list a{font-family:var(--mono);font-size:11px}
 .okc{color:var(--accent)}
 .filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
 .filters button{border:1px solid var(--line-2);background:var(--surface);border-radius:var(--r);padding:4px 10px;font-family:var(--mono);font-size:11.5px;color:var(--ink-2);cursor:pointer}
@@ -293,6 +317,16 @@ SCRIPT = """<script>
   try{t=localStorage.getItem("fontqa:theme")||"auto"}catch(e){}
   function apply(x){if(x==="auto")delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=x;document.getElementById("theme").textContent=x}
   apply(t);
+  // inside the page's frame: the page owns the theme and the scrolling; the frame reports its height
+  if(parent!==window){
+    document.getElementById("theme").style.display="none";
+    addEventListener("message",function(e){if(e.source===parent&&e.data&&e.data.fontqa==="theme")apply(e.data.t)});
+    var send=function(){parent.postMessage({fontqa:"height",h:document.body.offsetHeight},"*")};
+    addEventListener("load",send);if(window.ResizeObserver)new ResizeObserver(send).observe(document.body);
+    document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("a[href^='#']");if(!a)return;
+      var el=document.getElementById(a.getAttribute("href").slice(1));if(!el)return;e.preventDefault();
+      parent.postMessage({fontqa:"goto",y:el.getBoundingClientRect().top+window.scrollY},"*")});
+  }
   document.getElementById("theme").onclick=function(){t=THEMES[(THEMES.indexOf(t)+1)%3];apply(t);try{localStorage.setItem("fontqa:theme",t)}catch(e){}};
   var on={};
   function run(){

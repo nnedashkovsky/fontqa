@@ -59,7 +59,9 @@ def render(r):
     ws = wb.create_sheet("Summary")
     ws.append(["Inspection report", r["title"]])
     ws["A1"].font = Font(bold=True, size=14, color=ACCENT)
+    from .report_html import scope_text
     for k, v in [("Date", r["date"]), ("Profile", r["profile"]),
+                 ("Checks run", scope_text(r) or f"all {(r.get('scope') or {}).get('run', len(r['checks']))} of the level"),
                  ("Level", {"designer": "Designer: the drawing checks", "engineer": "Engineer: all checks"}.get(r.get("level") or "engineer")),
                  ("Tool", f"Font QA core {r['environment']['core']} · {r['environment']['env']} · fontTools {r['environment']['fontTools']}"),
                  ("Files", f"{r['inventory']['files']} ({', '.join(f'{k} {v}' for k, v in r['inventory']['formats'].items())})"),
@@ -72,21 +74,24 @@ def render(r):
         ws.append([k, v])
         ws.cell(ws.max_row, 1).font = BOLD
     ws.append([])
-    ws.append(["Category", "Fix", "Confirm", "Harmless", "Symptoms", "Checks", "Confirmed normal"])
+    ws.append(["Category", "Fix", "Confirm", "Harmless", "Symptoms", "Checks", "Passed", "Flagged"])
     hr = ws.max_row
     for c in ws[hr]:
         c.font, c.fill = HEAD_FONT, FILL["head"]
     for cat, name in r["categories"].items():
         b = s["by_category"][cat]
         if b["checks"]:
-            ws.append([f"{cat} {name}", b["fix"], b["confirm"], b["ok"], b["symptoms"], b["checks"], "; ".join(b["confirmed"])])
+            flagged = "; ".join(f"{x['title']} ({', '.join(x['issues'])})" for x in b.get("flagged", []))
+            ws.append([f"{cat} {name}", b["fix"], b["confirm"], b["ok"], b["symptoms"], b["checks"],
+                       "; ".join(b.get("passed", [])), flagged])
             ws.cell(ws.max_row, 7).alignment = WRAP
+            ws.cell(ws.max_row, 8).alignment = WRAP
     ws.append([])
     ws.append(["Inputs (SHA-256)"])
     ws.cell(ws.max_row, 1).font = BOLD
     for x in r["inputs"]:
         ws.append([x["path"], x["sha256"], x["size"], f"{x['lineage'] or '—'} {x['format']}"])
-    for col, w in zip("ABCDEFG", (34, 60, 12, 12, 12, 10, 80)):
+    for col, w in zip("ABCDEFGH", (34, 60, 12, 12, 12, 10, 70, 70)):
         ws.column_dimensions[col].width = w
 
     # ---- Issues

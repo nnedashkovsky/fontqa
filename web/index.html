@@ -122,6 +122,28 @@ table.diff td{border-top:1px solid var(--line);padding:3px 4px;vertical-align:to
 .rules-link:hover{background:var(--accent);color:var(--on-accent)}
 .theme{border:1px solid var(--line-2);background:transparent;border-radius:var(--r);padding:3px 8px;font-family:var(--mono);font-size:11px;color:var(--muted)}
 .insp{margin-top:14px}
+#setup{margin-top:0}
+.preset{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px;font-size:12.5px}
+.preset label{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.preset select{width:auto;min-width:230px;font-size:12px;padding:5px 8px}
+#pick-checks{margin-top:10px;font-size:12.5px}
+#pick-checks summary{cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--muted)}
+#check-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:2px 22px;margin-top:10px}
+#check-list .cat{grid-column:1/-1;font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-top:8px}
+#check-list label{display:flex;gap:7px;align-items:baseline;cursor:pointer;line-height:1.35}
+#check-list label small{font-family:var(--mono);font-size:10px;color:var(--faint)}
+.insp-run .auto{display:flex;gap:6px;align-items:center;cursor:pointer;font-family:var(--sans);font-size:12px;color:var(--muted)}
+details.dev{padding:0}
+details.dev>summary{cursor:pointer;padding:10px 14px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+details.dev[open]>summary{border-bottom:1px solid var(--line)}
+.devbox{padding:14px}
+.tabs{display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin:16px 0 10px;border-bottom:1px solid var(--line)}
+.tabs button{border:0;background:transparent;font-family:var(--mono);font-size:12px;color:var(--muted);padding:7px 12px;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer}
+.tabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
+.tabs .newtab{margin-left:auto;font-size:11px}
+.tab-off{display:none!important}
+.has-report .cols{grid-template-columns:minmax(0,1fr)}
+#report-view iframe{width:100%;min-height:420px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg);display:block}
 .tp-ctl{display:flex;flex-direction:column;gap:10px}
 .tp-text{width:100%;font:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--line-2);border-radius:var(--r);background:var(--surface-2);color:var(--ink)}
 .tp-size{font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;align-items:center;gap:8px}
@@ -149,7 +171,7 @@ table.diff td{border-top:1px solid var(--line);padding:3px 4px;vertical-align:to
 .insp-sum .fix{color:#B23A2E}.insp-sum .confirm{color:var(--warn)}
 :root[data-theme="dark"] .insp-sum .fix{color:#E07A6E}
 .insp-dl{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
-.insp iframe{width:100%;height:80vh;border:1px solid var(--line);border-radius:var(--r);margin-top:12px;background:var(--bg)}
+
 @media (max-width:600px){.wrap{padding:18px 16px 60px}.row{grid-template-columns:1fr}.meta{text-align:left}}
 </style>
 </head>
@@ -158,7 +180,7 @@ table.diff td{border-top:1px solid var(--line);padding:3px 4px;vertical-align:to
 <header>
   <div>
     <h1>Font QA</h1>
-    <div class="sub">Inventory, inspection, references and probes · nothing leaves this machine</div>
+    <div class="sub">Check built fonts in your browser · nothing leaves this machine</div>
     <a class="btn rules-link" href="../rules/">Rules · what is checked and why →</a>
   </div>
   <div class="tally">
@@ -174,6 +196,16 @@ table.diff td{border-top:1px solid var(--line);padding:3px 4px;vertical-align:to
 
 <div class="cols">
 <main>
+  <div class="card" id="setup" hidden>
+    <div class="lbl">What to check</div>
+    <div id="lv-pick"></div>
+    <div class="preset">
+      <label for="preset">Checks</label>
+      <select id="preset"></select>
+      <span id="preset-about" class="muted"></span>
+    </div>
+    <details id="pick-checks"><summary>Pick individual checks</summary><div id="check-list"></div></details>
+  </div>
   <div class="drop" id="drop">
     <b>Drop fonts or folders here</b>
     <span>OTF, TTF, WOFF, WOFF2 — read in this browser, never uploaded. A dropped folder keeps its structure: App / Desktop / Web.</span>
@@ -186,15 +218,21 @@ table.diff td{border-top:1px solid var(--line);padding:3px 4px;vertical-align:to
   </div>
   <div class="progress" id="progress" hidden><div class="bar"><i></i></div><span></span></div>
   <div class="card insp" id="insp" hidden>
-    <div class="lbl">Inspection · choose what to check</div>
-    <div id="lv-pick"></div>
+    <div class="lbl">Inspection</div>
     <div class="opts" id="eng-opts">
       <label><input type="checkbox" id="opt-fb"> Include Font Bakery <span class="muted">(slow: about 10 s per OTF/TTF)</span></label>
       <span class="drop small inline" id="drop-fj">Drop a <code>font.json</code> of promo facts to compare</span>
     </div>
-    <div class="insp-run"><button class="btn primary" id="run-insp">Run inspection</button><span id="insp-state" class="muted"></span></div>
+    <div class="insp-run"><button class="btn primary" id="run-insp">Run inspection</button>
+      <label class="auto"><input type="checkbox" id="opt-auto" checked> Run automatically after dropping fonts</label>
+      <span id="insp-state" class="muted"></span></div>
     <div id="insp-result"></div>
   </div>
+  <div class="tabs" id="tabs" hidden>
+    <button data-tab="report" class="on">Report</button><button data-tab="inventory">Inventory</button><button data-tab="testpage">Test page</button>
+    <button class="newtab" id="tab-new" title="Open the report in its own tab">Open in new tab ↗</button>
+  </div>
+  <section id="report-view" hidden></section>
   <section id="inventory"><p class="empty">No fonts yet.</p></section>
   <section id="testpage" hidden>
     <div class="fam-h" style="margin-top:26px"><span class="n">Test page</span><span class="m">every style once (a Desktop TTF/OTF where there is one) · features and axes apply live</span></div>
@@ -210,12 +248,14 @@ table.diff td{border-top:1px solid var(--line);padding:3px 4px;vertical-align:to
 <aside>
   <div class="card">
     <div class="lbl">References</div>
-    <div id="refs"><p class="empty" style="margin:0">Loading PT Sans and PT Serif Expert…</p></div>
-    <div class="drop small" id="drop-ref" style="margin-top:10px">Drop your own font to add it as a reference</div>
+    <div id="refs"><p class="empty" style="margin:0">Loading reference fonts…</p></div>
+    <div class="drop small" id="drop-ref" style="margin-top:10px">Optional: drop a font you trust to compare glyphs against it</div>
     <input type="file" id="in-ref" multiple accept=".otf,.ttf,.woff,.woff2" hidden>
   </div>
 
-  <div class="card">
+  <details class="card dev" id="dev">
+  <summary>Developer</summary>
+  <div class="devbox">
     <div class="lbl">Probes</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Font Bakery and Hyperglot run on the selected files; HarfBuzz shapes every OTF/TTF in the set.</div>
     <select id="probe-files" multiple size="5"></select>
@@ -224,12 +264,12 @@ table.diff td{border-top:1px solid var(--line);padding:3px 4px;vertical-align:to
     <div class="probe" id="p-fontbakery"><div class="h"><b>Font Bakery</b><button class="btn" data-probe="fontbakery" disabled>Run</button></div><div class="r"></div></div>
   </div>
 
-  <div class="card">
-    <div class="lbl">Compare with terminal</div>
+    <div class="lbl" style="margin-top:16px">Compare with terminal</div>
     <div class="drop small" id="drop-json">Drop JSON written by <code>./check.sh</code></div>
     <input type="file" id="in-json" multiple accept=".json" hidden>
     <div id="cmp"></div>
   </div>
+  </details>
 
   <div class="card">
     <div class="lbl">Downloads</div>
@@ -261,6 +301,11 @@ const state = {
   target: [],          // [{path, buf, face, ots}]
   refs: [],            // same, plus {custom}
   results: {},         // inventory, references, shape, hyperglot, fontbakery
+  preset: "all",       // a name from the core's PRESETS
+  selection: null,     // a Set of check ids when the user picked checks one by one
+  busy: false,         // an inspection is running (the button and the automatic run share it)
+  levelChosen: false,  // the visitor has picked a level before: only then is the run automatic
+  report: null,
 };
 
 /* ---------- theme ---------- */
@@ -269,6 +314,11 @@ function applyTheme(t) {
   if (t === "auto") delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = t;
   $("#theme").textContent = t;
+  postTheme(t);
+}
+function postTheme(t) {
+  const f = $("#report-frame");
+  if (f && f.contentWindow) f.contentWindow.postMessage({ fontqa: "theme", t: t ?? theme }, "*");
 }
 let theme = "auto";
 try { theme = localStorage.getItem("fontqa:theme") || "auto"; } catch (e) {}
@@ -391,6 +441,9 @@ async function setTarget(files) {
   $("#insp").hidden = false;
   $("#insp-result").innerHTML = "";
   $("#insp-state").textContent = "";
+  resetReportView();
+  // automatic only for small deliveries and for a visitor who has chosen a level before; never Font Bakery
+  if ($("#opt-auto").checked && state.levelChosen && files.length <= 40 && !state.busy && state.lv) runInspection();
 }
 
 /* ---------- test page ---------- */
@@ -494,27 +547,70 @@ try { state.level = localStorage.getItem("fontqa:level") || state.level; } catch
 if (state.level !== "designer" && state.level !== "engineer") state.level = "designer";
 function setupLevels(lv) {
   if (!lv || $("#lv-pick").childElementCount) return;
+  state.lv = lv;
+  try { state.levelChosen = !!localStorage.getItem("fontqa:level"); } catch (e) {}
   document.head.insertAdjacentHTML("beforeend", lv.css);
   $("#lv-pick").innerHTML = lv.panel;
-  const mark = () => {
-    $("#lv-pick").querySelectorAll(".lvcard").forEach((b) => b.classList.toggle("on", b.dataset.level === state.level));
-    $("#eng-opts").hidden = state.level !== "engineer";  // Font Bakery and font.json feed file-level checks
-  };
+  $("#setup").hidden = false;
   $("#lv-pick").onclick = (e) => {
     const b = e.target.closest(".lvcard");
     if (!b) return;
     state.level = b.dataset.level;
+    state.levelChosen = true;
+    state.selection = null;  // ids picked at another level may not exist at this one
     try { localStorage.setItem("fontqa:level", state.level); } catch (err) {}
-    mark();
+    renderChoice();
   };
-  mark();
+  $("#preset").onchange = () => {
+    const v = $("#preset").value;
+    if (v === "custom") return;
+    state.preset = v;
+    state.selection = null;
+    renderChoice();
+  };
+  $("#check-list").onchange = () => {
+    state.selection = new Set([...$("#check-list").querySelectorAll("input:checked")].map((i) => i.value));
+    renderChoice();
+  };
+  renderChoice();
+}
+// the checks a level offers: everything for the engineer, the drawing checks for the designer
+const levelChecks = () => state.lv.catalog.filter((c) => state.level === "engineer" || c.level === "designer");
+const presetIds = (name) => {
+  const pre = state.lv.presets[name]?.prefixes;
+  return levelChecks().filter((c) => !pre || pre.some((p) => c.id.startsWith(p))).map((c) => c.id);
+};
+function renderChoice() {
+  const lv = state.lv;
+  $("#lv-pick").querySelectorAll(".lvcard").forEach((b) => b.classList.toggle("on", b.dataset.level === state.level));
+  $("#eng-opts").hidden = state.level !== "engineer";  // Font Bakery and font.json feed file-level checks
+  const all = levelChecks();
+  if (!state.selection && presetIds(state.preset).length === 0) state.preset = "all";
+  const sel = state.selection;
+  const options = Object.entries(lv.presets).filter(([n]) => n === "all" || presetIds(n).length)
+    .map(([n, p]) => `<option value="${n}"${!sel && state.preset === n ? " selected" : ""}>${esc(p.title)} · ${presetIds(n).length}</option>`);
+  if (sel) options.push(`<option value="custom" selected>Custom selection · ${sel.size}</option>`);
+  $("#preset").innerHTML = options.join("");
+  $("#preset-about").textContent = sel ? "checks ticked below" : lv.presets[state.preset].about;
+  const ticked = sel || new Set(presetIds(state.preset));
+  let html = "", cat = "";
+  for (const c of all) {
+    if (c.category !== cat) { cat = c.category; html += `<div class="cat">${esc(cat)} · ${esc(lv.categories[cat] || "")}</div>`; }
+    html += `<label><input type="checkbox" value="${esc(c.id)}"${ticked.has(c.id) ? " checked" : ""}> <span>${esc(c.title)}</span> <small>${esc(c.id)}</small></label>`;
+  }
+  $("#check-list").innerHTML = html;
 }
 async function runInspection(opts = {}) {
-  const fontbakery = (opts.level ?? state.level) === "engineer" && (opts.fontbakery ?? $("#opt-fb").checked);
+  if (state.busy) return null;
+  const level = opts.level ?? state.level;
+  const fontbakery = level === "engineer" && (opts.fontbakery ?? $("#opt-fb").checked);
+  const only = opts.only ?? (state.selection ? [...state.selection] : null);
+  const preset = only ? null : (opts.preset ?? (state.preset !== "all" ? state.preset : null));
+  if (only && !only.length) { $("#insp-state").textContent = "pick at least one check"; return null; }
   const btn = $("#run-insp");
+  state.busy = true;
   btn.disabled = true;
   $("#insp-state").textContent = "running…";
-  $("#insp-result").innerHTML = "";
   const t0 = performance.now();
   try {
     const out = await call("inspect", {
@@ -527,7 +623,9 @@ async function runInspection(opts = {}) {
       refs: state.refs.filter((f) => f.custom).map((f) => f.path),
       attachments: opts.attachments ?? true,
       profile: opts.profile,
-      level: opts.level ?? state.level,
+      level,
+      preset,
+      only,
     });
     progress(0, 0);
     state.results.issues = out.issues;
@@ -540,15 +638,45 @@ async function runInspection(opts = {}) {
   } catch (err) {
     $("#insp-state").innerHTML = `<span style="color:var(--warn)">failed: ${esc(err.message.split("\n").slice(-2).join(" "))}</span>`;
   } finally {
+    state.busy = false;
     btn.disabled = false;
   }
 }
+
+/* ---------- report view: a tab of its own, as tall as the report ---------- */
+function showTab(name) {
+  state.tab = name;
+  $("#tabs").querySelectorAll("[data-tab]").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
+  for (const [id, tab] of [["#report-view", "report"], ["#inventory", "inventory"], ["#testpage", "testpage"]]) {
+    $(id).classList.toggle("tab-off", name !== tab);
+  }
+}
+function resetReportView() {
+  $("#tabs").hidden = true;
+  $("#report-view").hidden = true;
+  $("#report-view").innerHTML = "";
+  document.body.classList.remove("has-report");
+  for (const id of ["#report-view", "#inventory", "#testpage"]) $(id).classList.remove("tab-off");
+}
+$("#tabs").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-tab]");
+  if (b) showTab(b.dataset.tab);
+});
+// messages from the report: its height, and where a link inside it wants the page to scroll
+window.addEventListener("message", (e) => {
+  const f = $("#report-frame");
+  if (!f || e.source !== f.contentWindow || !e.data || typeof e.data !== "object") return;
+  if (e.data.fontqa === "height" && Number.isFinite(e.data.h)) f.style.height = Math.max(420, Math.ceil(e.data.h) + 2) + "px";
+  if (e.data.fontqa === "goto" && Number.isFinite(e.data.y)) {
+    window.scrollTo({ top: f.getBoundingClientRect().top + window.scrollY + e.data.y - 12, behavior: "smooth" });
+  }
+});
 
 function slug(s) { return String(s || "fonts").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
 
 function renderInspection(out) {
   const r = out.issues, s = r.summary;
-  const base = `${slug(r.title)}-${r.date}`;
+  const base = `${slug(r.title)}-${r.date}${r.scope && r.scope.partial ? "-partial" : ""}`;
   $("#insp-result").innerHTML = `
     <div class="insp-sum">
       <span><b class="fix">${s.by_action.fix}</b> fix</span>
@@ -565,8 +693,22 @@ function renderInspection(out) {
     </div>
     ${Object.keys(out.pages || {}).length ? `<div class="insp-dl"><span class="muted" style="font-size:11.5px;align-self:center">attachments:</span>` +
       Object.keys(out.pages).map((n) => `<button class="btn" data-page="${esc(n)}">${esc(n)}</button>`).join("") + `</div>` : ""}
-    <iframe title="Inspection report" sandbox="allow-scripts"></iframe>`;
-  $("#insp-result iframe").srcdoc = out.html;
+    ${r.scope && r.scope.partial ? `<p class="note">Partial run: ${r.scope.run} of ${r.scope.available} checks.</p>` : ""}`;
+  // allow-scripts only: the report is the file that gets downloaded and must not reach this page;
+  // popups let its "rule" links open in a new tab, and the page and the report talk by messages
+  $("#report-view").innerHTML = `<iframe id="report-frame" title="Inspection report" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"></iframe>`;
+  const frame = $("#report-frame");
+  frame.onload = () => postTheme();
+  frame.srcdoc = out.html;
+  $("#tabs").hidden = false;
+  $("#report-view").hidden = false;
+  document.body.classList.add("has-report");
+  showTab("report");
+  $("#tab-new").onclick = () => {
+    const url = URL.createObjectURL(new Blob([out.html], { type: "text/html" }));
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  };
   $("#insp-result").onclick = (e) => {
     const pg = e.target.closest("[data-page]");
     if (pg) {
@@ -597,6 +739,8 @@ function renderInspection(out) {
   };
 }
 $("#run-insp").onclick = () => runInspection();
+try { $("#opt-auto").checked = localStorage.getItem("fontqa:autorun") !== "0"; } catch (e) {}
+$("#opt-auto").onchange = () => { try { localStorage.setItem("fontqa:autorun", $("#opt-auto").checked ? "1" : "0"); } catch (e) {} };
 
 function renderInventory() {
   const inv = state.results.inventory;
@@ -831,7 +975,7 @@ document.addEventListener("drop", (e) => e.preventDefault());
 /* ---------- start ---------- */
 (async () => {
   try { await setRefs(await loadServerFolder("/refs/")); }
-  catch (err) { $("#refs").innerHTML = `<p class="note">No built-in reference fonts here. Drop your own reference font above, or run locally with ./serve.sh and FONTQA_REFS.</p>`; }
+  catch (err) { $("#refs").innerHTML = `<p class="empty" style="margin:0">No reference fonts loaded. This is optional.</p>`; }
   const load = new URLSearchParams(location.search).get("load");
   if (load) {
     const parts = await Promise.all(load.split(",").map((u) => loadServerFolder("/" + u.replace(/^\//, ""))));

@@ -95,6 +95,7 @@ def main(argv=None):
     p.add_argument("a")
     p.add_argument("b")
     p = sub.add_parser("rules", help="check the rule cards against the code; --out writes the Rules page")
+    p.add_argument("--presets", action="store_true", help="list the presets and the checks in each")
     p.add_argument("--out", help="HTML file for the Rules page")
     p = sub.add_parser("inspect")
     p.add_argument("inputs", nargs="+")
@@ -109,6 +110,7 @@ def main(argv=None):
     p.add_argument("--ref", action="append", default=[], help="your own reference font (repeatable)")
     p.add_argument("--no-attachments", action="store_true", help="skip glyph grids, GSUB listing and proofs")
     p.add_argument("--checks", help="comma-separated check-id prefixes to run only those, e.g. vf.,lineage.")
+    p.add_argument("--preset", help="a named selection of checks (see `rules --presets`), e.g. differences")
     args = ap.parse_args(argv)
 
     if args.cmd == "inspect":
@@ -128,7 +130,8 @@ def main(argv=None):
             with open(args.font_json, encoding="utf-8") as fh:
                 fj = json.load(fh)
         only = [c.strip() for c in args.checks.split(",")] if args.checks else None
-        result = run(paths, profile=args.profile, ots=ots_map, fontbakery=fb, font_json=fj, progress=tick, only=only, level=args.level)
+        result = run(paths, profile=args.profile, ots=ots_map, fontbakery=fb, font_json=fj, progress=tick, only=only, level=args.level,
+                     preset=args.preset)
         print(file=sys.stderr)
         if args.json_only:
             os.makedirs(args.out, exist_ok=True)
@@ -147,6 +150,12 @@ def main(argv=None):
         from . import rules
         from .checks import load_all
         registry = load_all()
+        if args.presets:
+            from .checks import PRESETS
+            for name, pr in PRESETS.items():
+                ids = [c.id for c in registry if not pr["prefixes"] or any(c.id.startswith(x) for x in pr["prefixes"])]
+                print(f"{name:12} {len(ids):3} checks  {pr['about']}")
+            return 0
         cards = rules.load()
         errors, notes = rules.validate(cards, registry)
         for n in notes:

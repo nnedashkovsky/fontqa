@@ -55,7 +55,7 @@ async function boot() {
   } catch (err) { /* no cards: the report falls back to the short texts in the code */ }
   py.runPython(`import sys\nif "/app" not in sys.path: sys.path.insert(0, "/app")`);
   env = JSON.parse(py.runPython(`import json\nfrom core.inventory import environment\njson.dumps(environment())`));
-  env.levels = JSON.parse(py.runPython(`import json\nfrom core import levels\njson.dumps({"css": levels.CSS, "panel": levels.panel()})`));
+  env.levels = JSON.parse(py.runPython(`import json\nfrom core import levels\nfrom core.checks import load_all, PRESETS, CATEGORIES, catalog\nload_all()\njson.dumps({"css": levels.CSS, "panel": levels.panel(), "presets": PRESETS, "categories": CATEGORIES, "catalog": catalog()})`));
   env.harfbuzz = self.hb.version_string();
   env.pyodide = py.version;
   env.boot_ms = Math.round(performance.now() - t0);
@@ -199,7 +199,7 @@ json.dumps(r, ensure_ascii=False, sort_keys=True)
     return { setup, result };
   },
 
-  async inspect({ role, paths, facts, ots, fontbakery, fontJson, refs, attachments, profile, level }) {
+  async inspect({ role, paths, facts, ots, fontbakery, fontJson, refs, attachments, profile, level, preset, only }) {
     const t0 = performance.now();
     let fb = null;
     if (fontbakery) {
@@ -250,7 +250,8 @@ if a["profile"]:  # window.checker.runInspection({profile: true}) — where the 
     prof = cProfile.Profile()
     prof.enable()
 r = run(paths, ots=a["ots"], fontbakery=a["fb"],
-        font_json=a["fontJson"], facts=facts, progress=lambda n, t, p: progress_js(n, t, p), level=a["level"])
+        font_json=a["fontJson"], facts=facts, progress=lambda n, t, p: progress_js(n, t, p), level=a["level"],
+        preset=a["preset"], only=a["only"])
 pages, extra = {}, ""
 if a["attachments"]:
     from core import attachments as att
@@ -272,7 +273,7 @@ if prof:
     profile = buf.getvalue()
 json.dumps({"issues": r, "profile": profile, "html": render_html(r, extra, list(pages)), "xlsx": base64.b64encode(render_xlsx(r)).decode(),
             "pages": pages}, ensure_ascii=False, sort_keys=True)
-`, { role, paths, facts, ots, fb, fontJson, refs: refs || [], attachments: attachments !== false, profile: !!profile, level: level || "designer" });
+`, { role, paths, facts, ots, fb, fontJson, refs: refs || [], attachments: attachments !== false, profile: !!profile, level: level || "designer", preset: preset || null, only: only || null });
     out.ms = Math.round(performance.now() - t0);
     return out;
   },

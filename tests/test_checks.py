@@ -273,3 +273,91 @@ def test_changelog_names_the_current_version():
     with open(os.path.join(HERE, "..", "CHANGELOG.md"), encoding="utf-8") as fh:
         first = next(line for line in fh if line.startswith("## "))
     assert first.startswith(f"## {VERSION} "), f"CHANGELOG starts with {first.strip()!r}, the core is {VERSION}"
+
+
+def test_summary_separates_flagged_from_passed(tmp_path):
+    """Every check of a category is exactly one of: flagged, passed, not performed or not applicable."""
+    fk.family(tmp_path)
+    fk.build(os.path.join(tmp_path, "Desktop", "Broken-Regular.ttf"), family="Broken Sans With A Very Long Family Name",
+             widths={0xA0: 400}, os2={"fsSelection": 0x40})
+    result = inspect(tmp_path)
+    summary = result["summary"]
+    titles = {c["id"]: c["title"] for c in result["checks"]}
+    skipped = set(summary["not_performed"]) | set(summary["not_applicable"])
+    for cat, row in summary["by_category"].items():
+        flagged = {x["title"] for x in row["flagged"]}
+        passed = set(row["passed"])
+        assert not flagged & passed, (cat, flagged & passed)
+        in_cat = {t for c, t in titles.items() if next(k for k in result["checks"] if k["id"] == c)["category"] == cat}
+        assert flagged | passed | (in_cat & skipped) == in_cat, (cat, in_cat - flagged - passed - skipped)
+    flagged_ids = {x["check"] for row in summary["by_category"].values() for x in row["flagged"]}
+    assert flagged_ids == {i["check"] for i in result["issues"]}
+    for row in summary["by_category"].values():
+        for x in row["flagged"]:
+            assert all(i in {p["id"] for p in result["issues"]} for i in x["issues"])
+
+
+def test_presets_select_the_expected_checks(tmp_path):
+    from core.checks import PRESETS, DESIGNER
+    fk.family(tmp_path)
+    for level in ("designer", "engineer"):
+        full = inspect(tmp_path, level=level)
+        assert full["scope"]["partial"] is False and full["scope"]["run"] == full["scope"]["available"]
+        for name, pr in PRESETS.items():
+            if name == "all":
+                continue
+            paths = inventory.collect([str(tmp_path)])
+            try:
+                result = run(paths, level=level, preset=name, ots={rel: "ok" for _, rel in paths})
+            except ValueError:
+                # a preset can be empty at the designer level (e.g. names): that is an error, not a silent full run
+                assert not [c for c in load_all() if any(c.id.startswith(x) for x in pr["prefixes"]) and
+                            (level == "engineer" or c.id in DESIGNER)]
+                continue
+            ran = {c["id"] for c in result["checks"]}
+            want = {c.id for c in load_all() if any(c.id.startswith(x) for x in pr["prefixes"]) and
+                    (level == "engineer" or c.id in DESIGNER)}
+            assert ran == want, (level, name)
+            assert result["scope"]["preset"] == name
+            assert result["scope"]["partial"] == (len(want) < result["scope"]["available"])
+
+
+def test_partial_run_is_marked_everywhere(tmp_path):
+    from core.report_html import render
+    from core.report_xlsx import render as render_xlsx
+    fk.family(tmp_path)
+    paths = inventory.collect([str(tmp_path)])
+    result = run(paths, preset="differences", ots={rel: "ok" for _, rel in paths})
+    assert result["scope"]["run"] == 6 and result["scope"]["partial"]
+    assert "Partial run: 6 of 55 checks" in render(result)
+    assert render_xlsx(result)[:2] == b"PK"
+
+
+def test_unknown_preset_and_conflicts_fail_loudly(tmp_path):
+    fk.family(tmp_path)
+    paths = inventory.collect([str(tmp_path)])
+    with pytest.raises(ValueError):
+        run(paths, preset="nope")
+    with pytest.raises(ValueError):
+        run(paths, preset="names", only=["vf."])
+    with pytest.raises(ValueError):
+        run(paths, only=["no.such.check"])
+
+
+def test_partial_run_reports_no_symptoms_of_checks_that_did_not_run(tmp_path):
+    fk.family(tmp_path)
+    fk.build(os.path.join(tmp_path, "Desktop", "Broken-Regular.ttf"), family="Broken Sans With A Very Long Family Name")
+    paths = inventory.collect([str(tmp_path)])
+    ots = {rel: "ok" for _, rel in paths}
+    full = run(paths, ots=ots)
+    assert any(s["check"] == "names.gdi_length" for s in full["symptoms"]), "the clean case for this test is gone"
+    partial = run(paths, ots=ots, preset="differences")
+    assert partial["issues"] == [] and partial["symptoms"] == []
+    only_gdi = run(paths, ots=ots, only=["names.gdi_length"])
+    assert {s["check"] for s in only_gdi["symptoms"]} == {"names.gdi_length"}
+    assert all(s["parent"] != "—" for s in only_gdi["symptoms"])
+
+
+def test_check_order_does_not_depend_on_import_order():
+    ids = [c.id for c in load_all()]
+    assert ids == sorted(ids, key=lambda i: (next(c.category for c in load_all() if c.id == i), i))

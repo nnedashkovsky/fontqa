@@ -91,6 +91,10 @@ Compare two runs (or the browser against the terminal):
 ./check.sh compare old/issues.json new/issues.json
 ```
 
+## Presets
+
+Run only a part of the checks: `./check.sh inspect … --preset differences` (list them with `./check.sh rules --presets`), or pick a preset or single checks on the page. The most useful one is `differences`: the checks that compare fonts with each other (character set, widths, vertical metrics, family-wide names, copies in App/Desktop/Web, variable against static). A partial report says so everywhere, because its counts cannot be compared with a full run.
+
 ## Tests
 
 ```bash

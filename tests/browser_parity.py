@@ -33,11 +33,11 @@ from core.inspection import run  # noqa: E402
 from test_checks import DIGITS_TF, FEA_CLEAN, W, add_legacy_kern, features_font  # noqa: E402
 
 RUN_IN_PAGE = """
-async ([rels, level]) => {
+async ([rels, level, preset]) => {
   const files = await Promise.all(rels.map(async (rel) =>
     ({ path: rel, buf: await (await fetch("/" + rel)).arrayBuffer() })));
   await window.checker.setTarget(files);
-  const out = await window.checker.runInspection({ attachments: false, level });
+  const out = await window.checker.runInspection({ attachments: false, level, preset });
   if (!out) throw new Error(document.querySelector("#insp-state").textContent);
   return JSON.stringify(out.issues);
 }
@@ -86,10 +86,12 @@ def main():
             page.on("pageerror", lambda err: print("page error:", err))
             page.goto(url)
             page.wait_for_function("document.body.innerText.includes('ready ·')", timeout=180_000)
-            for level in ("designer", "engineer"):
-                in_browser = json.loads(page.evaluate(RUN_IN_PAGE, [rels, level]))
+            # (level, preset): full runs at both levels, and the selections that change what runs
+            for level, preset in (("designer", None), ("engineer", None), ("engineer", "differences"), ("designer", "glyphs")):
+                in_browser = json.loads(page.evaluate(RUN_IN_PAGE, [rels, level, preset]))
                 ots = {rel: "ok" for rel in rels}  # the browser loaded every font, which is its OTS verdict
-                in_terminal = json.loads(json.dumps(run(paths, ots=ots, level=level)))
+                in_terminal = json.loads(json.dumps(run(paths, ots=ots, level=level, preset=preset)))
+                level = f"{level} / {preset or 'all'}"
                 res = inventory.compare(in_terminal, in_browser)
                 n = len(in_browser["issues"])
                 if res["same"]:

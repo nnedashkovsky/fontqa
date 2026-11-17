@@ -91,6 +91,43 @@ DESIGNER = frozenset({
 })
 
 
+# Named selections of checks: id prefixes, run inside the chosen level. `all` runs everything the level has.
+PRESETS = {
+    "all": {"title": "Everything", "prefixes": None,
+            "about": "every check of the chosen level"},
+    "differences": {"title": "Differences between styles",
+                    "prefixes": ["charset.family_same", "widths.near_equal", "metrics.family_vertical",
+                                 "names.family_consistent", "lineage.copies_agree", "vf.vs_static"],
+                    "about": "checks that compare fonts with each other: character set, widths, vertical metrics, "
+                             "family-wide names, copies in App/Desktop/Web, variable against static"},
+    "names": {"title": "Names", "prefixes": ["names.", "tables.meta"], "about": "name table and family naming"},
+    "tables": {"title": "Table values", "prefixes": ["os2.", "post.", "tables.hinting"],
+               "about": "OS/2, post and hinting values"},
+    "metrics": {"title": "Metrics", "prefixes": ["metrics."], "about": "vertical metrics and line spacing"},
+    "glyphs": {"title": "Character set and glyphs", "prefixes": ["charset.", "glyphs.", "widths."],
+               "about": "coverage, empty glyphs, spaces, tabular figures, widths"},
+    "outlines": {"title": "Outlines", "prefixes": ["outline."], "about": "extremes, zero-length segments, coordinates"},
+    "layout": {"title": "OpenType layout", "prefixes": ["layout."], "about": "scripts, kerning, alternates, marks"},
+    "variable": {"title": "Variable fonts", "prefixes": ["vf."], "about": "instances, STAT, masters, against statics"},
+    "lineage": {"title": "App / Desktop / Web copies", "prefixes": ["lineage."], "about": "copies of one style agree"},
+    "release": {"title": "Release", "prefixes": ["release."], "about": "formats, file names, credits, version"},
+    "validators": {"title": "Validators", "prefixes": ["external."], "about": "OTS and Font Bakery"},
+}
+
+
+def preset_prefixes(name):
+    """Id prefixes of a preset (None = all). Unknown names raise, so a typo never runs a full check silently."""
+    if name not in PRESETS:
+        raise ValueError(f"unknown preset {name!r}; known: {', '.join(PRESETS)}")
+    return PRESETS[name]["prefixes"]
+
+
+def catalog(registry=None):
+    """What the page needs to offer a choice of checks."""
+    return [{"id": c.id, "title": c.title, "category": c.category, "level": c.level}
+            for c in sorted(registry or REGISTRY, key=lambda c: (c.category, c.id))]
+
+
 def in_level(check, level):
     """Engineer runs everything; designer runs the drawing checks."""
     return level != "designer" or check.level == "designer"
@@ -139,6 +176,9 @@ def files_of(views):
 def load_all():
     """Import the check modules (registration happens on import)."""
     from . import names, metrics, charset, outline, layout, external, release, variable, lineage  # noqa: F401
+    # registration order depends on which module was imported first (core.inspection imports
+    # charset on its own); sort, so the terminal and the browser list the checks the same way
+    REGISTRY.sort(key=lambda c: (c.category, c.id))
     unknown = DESIGNER - {c.id for c in REGISTRY}
     assert not unknown, f"DESIGNER lists unknown checks: {sorted(unknown)}"
     return REGISTRY
