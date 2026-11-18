@@ -696,7 +696,7 @@ function renderInspection(out) {
     ${r.scope && r.scope.partial ? `<p class="note">Partial run: ${r.scope.run} of ${r.scope.available} checks.</p>` : ""}`;
   // allow-scripts only: the report is the file that gets downloaded and must not reach this page;
   // popups let its "rule" links open in a new tab, and the page and the report talk by messages
-  $("#report-view").innerHTML = `<iframe id="report-frame" title="Inspection report" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"></iframe>`;
+  $("#report-view").innerHTML = `<iframe id="report-frame" title="Inspection report" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" allow="clipboard-write"></iframe>`;
   const frame = $("#report-frame");
   frame.onload = () => postTheme();
   frame.srcdoc = out.html;

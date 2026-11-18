@@ -25,6 +25,8 @@ sys.path.insert(0, os.path.join(HERE, ".."))
 from core.languages import encode_units  # noqa: E402
 
 MIN_SPEAKERS = 100_000
+REGION_MIN_SPEAKERS = 100_000  # a continent counts for a language with this many speakers in one territory of it
+CONTINENTS = {"150": "EU", "142": "AS", "019": "AM", "002": "AF", "009": "OC"}
 
 
 def parse_unicode_set(text):
@@ -85,11 +87,24 @@ def main(root):
             return json.load(fh)
 
     version = load("cldr-core", "package.json")["version"]
-    people = {}
-    for d in load("cldr-core", "supplemental", "territoryInfo.json")["supplemental"]["territoryInfo"].values():
+    contain = load("cldr-core", "supplemental", "territoryContainment.json")["supplemental"]["territoryContainment"]
+    continent_of = {}
+
+    def walk(code, continent):
+        for child in contain.get(code, {}).get("_contains", []):
+            continent_of.setdefault(child, continent)
+            walk(child, continent)
+
+    for code, name in CONTINENTS.items():
+        walk(code, name)
+    people, where = {}, {}
+    for terr, d in load("cldr-core", "supplemental", "territoryInfo.json")["supplemental"]["territoryInfo"].items():
         pop = float(d["_population"])
         for key, v in d.get("languagePopulation", {}).items():
-            people[key] = people.get(key, 0) + pop * float(v["_populationPercent"]) / 100
+            n = pop * float(v["_populationPercent"]) / 100
+            people[key] = people.get(key, 0) + n
+            if n >= REGION_MIN_SPEAKERS and terr in continent_of:
+                where.setdefault(key, set()).add(continent_of[terr])
     likely = load("cldr-core", "supplemental", "likelySubtags.json")["supplemental"]["likelySubtags"]
     names = load("cldr-localenames-full", "main", "en", "languages.json")["main"]["en"]["localeDisplayNames"]["languages"]
     scripts = load("cldr-localenames-full", "main", "en", "scripts.json")["main"]["en"]["localeDisplayNames"]["scripts"]
@@ -113,7 +128,9 @@ def main(root):
         name = names.get(lang, lang)
         if len(parts) == 2:
             name += f" ({scripts.get(script, script)})"
-        out[tag] = {"name": name, "script": script, "speakers": int(n), "main": encode_units(parse_unicode_set(main_set))}
+        regions = where.get(f"{lang}_{script}") or (where.get(lang) if script == default_script else None) or set()
+        out[tag] = {"name": name, "script": script, "speakers": int(n), "regions": sorted(regions),
+                    "main": encode_units(parse_unicode_set(main_set))}
         used_scripts[script] = scripts.get(script, script)
     data = {"_source": f"Unicode CLDR {version} (cldr-json): exemplar characters, territory population, English names",
             "_license": "Unicode License v3, see LICENSE-CLDR.txt", "scripts": dict(sorted(used_scripts.items())),

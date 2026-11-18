@@ -165,14 +165,16 @@ def render(r):
         rows = []
         for g in langs["groups"]:
             styles = "; ".join(g["styles"])
+            script = lambda t: langs["scripts"].get(names[t]["script"], names[t]["script"])
             for tag in sorted(g["supported"], key=lambda t: -names[t]["speakers"]):
-                rows.append([styles, names[tag]["name"], langs["scripts"].get(names[tag]["script"], names[tag]["script"]),
-                             names[tag]["speakers"], "supported", ""])
-            for a in sorted(g["almost"], key=lambda a: -names[a["tag"]]["speakers"]):
-                rows.append([styles, names[a["tag"]]["name"], langs["scripts"].get(names[a["tag"]]["script"], names[a["tag"]]["script"]),
-                             names[a["tag"]]["speakers"], "one step away", " ".join(a["missing"])])
-        _sheet(wb, "Languages", ["Styles", "Language", "Script", "Speakers (est.)", "Status", "Letters to add"], rows,
-               [50, 28, 16, 16, 14, 30], wrap=(1,))
+                rows.append([styles, names[tag]["name"], script(tag), names[tag]["speakers"], "supported", 100.0, ""])
+            for a in sorted(g["partial"], key=lambda a: (-a["have"] / a["total"], -names[a["tag"]]["speakers"])):
+                short = a["total"] - a["have"]
+                rows.append([styles, names[a["tag"]]["name"], script(a["tag"]), names[a["tag"]]["speakers"],
+                             "one step away" if short <= 3 and a["have"] / a["total"] >= 0.7 else "partial",
+                             round(100 * a["have"] / a["total"], 1), " ".join(f"U+{c:04X} {chr(c)}" for c in a["need"])])
+        _sheet(wb, "Languages", ["Styles", "Language", "Script", "Speakers (est.)", "Status", "Letters covered, %", "Code points to add"], rows,
+               [50, 28, 16, 16, 14, 18, 60], wrap=(1, 7))
 
     # ---- Legend
     ws = wb.create_sheet("Legend")

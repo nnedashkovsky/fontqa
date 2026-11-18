@@ -384,7 +384,7 @@ def _coverage(views):
 
 
 def _languages(views):
-    """Languages each style supports or nearly supports; styles with the same answer share one group."""
+    """Languages each style supports, and those it is partly short of (from 40%); styles with the same answer share a group."""
     from . import languages as lg
     from .checks.charset import language_view
     groups, used = {}, {}
@@ -393,18 +393,21 @@ def _languages(views):
             continue
         cov = language_view(v)
         supported = sorted(x["tag"] for x in cov["supported"])
-        almost = sorted(({"tag": a["lang"]["tag"], "missing": a["missing"]} for a in cov["almost"]), key=lambda a: a["tag"])
-        key = json.dumps([supported, almost], ensure_ascii=False)
+        partial = sorted(({"tag": a["lang"]["tag"], "missing": a["missing"], "need": a["need"],
+                           "have": a["total"] - a["letters"], "total": a["total"]} for a in cov["partial"]), key=lambda a: a["tag"])
+        key = json.dumps([supported, partial], ensure_ascii=False)
         label = f"{v.family} {v.subfamily}" + (" (variable)" if v.variable else "")
-        groups.setdefault(key, {"styles": set(), "supported": supported, "almost": almost})["styles"].add(label)
-        for x in cov["supported"] + [a["lang"] for a in cov["almost"]]:
+        groups.setdefault(key, {"styles": set(), "supported": supported, "partial": partial})["styles"].add(label)
+        for x in cov["supported"] + [a["lang"] for a in cov["partial"]]:
             used[x["tag"]] = x
         v.release()
     db = lg.database()
-    out = sorted(({"styles": sorted(g["styles"]), "supported": g["supported"], "almost": g["almost"]} for g in groups.values()),
+    out = sorted(({"styles": sorted(g["styles"]), "supported": g["supported"], "partial": g["partial"]} for g in groups.values()),
                  key=lambda g: g["styles"])
     return {"source": db["source"], "min_speakers_for_findings": lg.ALMOST_MIN_SPEAKERS, "groups": out,
-            "names": {t: {"name": x["name"], "script": x["script"], "speakers": x["speakers"]} for t, x in sorted(used.items())},
+            "names": {t: {"name": x["name"], "script": x["script"], "speakers": x["speakers"], "regions": x["regions"],
+                          "letters": len(x["letters"])}
+                      for t, x in sorted(used.items())},
             "scripts": db["scripts"]}
 
 

@@ -427,3 +427,51 @@ def test_languages_section_is_in_the_report_and_the_workbook(tmp_path):
     assert "Languages" in wb.sheetnames
     statuses = {row[4] for row in wb["Languages"].iter_rows(min_row=2, values_only=True)}
     assert {"supported", "one step away"} <= statuses
+
+
+def test_partial_coverage_lists_what_to_add():
+    from core import languages as lg
+    cmap = set(fk.western())
+    result = lg.coverage(cmap)
+    hungarian = next(a for a in result["partial"] if a["lang"]["tag"] == "hu")
+    assert hungarian["need"] == [0x150, 0x151, 0x170, 0x171] and hungarian["total"] - hungarian["letters"] > 20
+    assert all((a["total"] - a["letters"]) / a["total"] >= lg.PARTIAL_MIN_SHARE for a in result["partial"])
+    assert {a["lang"]["tag"] for a in result["almost"]} <= {a["lang"]["tag"] for a in result["partial"]}
+    # a language the font has nothing of is not listed at all
+    assert "ko" not in {a["lang"]["tag"] for a in result["partial"]}
+
+
+def test_language_data_has_regions_and_letter_counts(tmp_path):
+    from core import languages as lg
+    assert {"EU", "AS", "AM", "AF", "OC"} >= {r for x in lg.database()["languages"] for r in x["regions"]}
+    assert all(x["regions"] for x in lg.database()["languages"])
+    fk.family(tmp_path)
+    langs = inspect(tmp_path)["languages"]
+    assert "EU" in langs["names"]["en"]["regions"] and langs["names"]["en"]["letters"] >= 26
+
+
+def test_report_languages_are_rows_with_filters_and_copyable_letters(tmp_path):
+    import re
+    from core.report_html import render
+    fk.family(tmp_path)
+    html = render(inspect(tmp_path))
+    row = re.search(r"<div class='lrow [a-z]+' data-name=\"hungarian\".*?</div></div>", html, re.S)
+    assert row, "Hungarian is 4 letters short of a Windows-1252 font and gets a row"
+    text = row.group(0)
+    assert 'data-uni="U+0150 U+0151 U+0170 U+0171"' in text
+    assert "Ohungarumlaut" in text and "LATIN CAPITAL LETTER O WITH DOUBLE ACUTE" in text
+    assert "data-f='region:EU'" in html and "data-f='status:near'" in html and "data-union='names'" in html
+    # a supported language shows its real letter count, not 1/1
+    english = re.search(r"data-name=\"english\".*?<div class='lp'>(.*?)</div>", html, re.S).group(1)
+    assert "100.0 %" in english and "(26/26)" in english
+
+
+def test_workbook_languages_sheet_has_percent_and_code_points(tmp_path):
+    import io, openpyxl
+    from core.report_xlsx import render as render_xlsx
+    fk.family(tmp_path)
+    wb = openpyxl.load_workbook(io.BytesIO(render_xlsx(inspect(tmp_path))))
+    rows = list(wb["Languages"].iter_rows(min_row=1, values_only=True))
+    assert rows[0][5] == "Letters covered, %" and rows[0][6] == "Code points to add"
+    hu = next(r for r in rows[1:] if r[1] == "Hungarian")
+    assert hu[4] in ("one step away", "partial") and "U+0151" in hu[6] and 80 < hu[5] < 100

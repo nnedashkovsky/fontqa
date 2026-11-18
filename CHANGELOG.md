@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0 — 2026-11-17
+
+- Languages in the report are a list of bars: every language the font supports, and every language of which it has at least 40 % of the letters, each with its share and count (e.g. Hungarian 80,6 % — 29/36), after Font Analyzer's Languages tab.
+- Filters: supported / with missing letters / under 10 % short; script; where the language is spoken (continent, from CLDR: a territory with 100 000 speakers or more); sort by coverage, speakers or name.
+- A language with missing letters opens a table of what to add — code point, Unicode name, glyph name (AGL, else uniXXXX) — with buttons to copy the glyph names (for Glyphs' Add Glyphs), the Unicode values or the characters. The same buttons above the list copy the union for the languages the filters leave visible: the letters that open the most languages.
+- `issues.json`: `languages.groups[*].partial` (with `need`, `have`, `total`) replaces `almost`; names carry `regions` and `letters`. The xlsx Languages sheet has the share and the code points to add.
+- The report frame may write to the clipboard (`allow="clipboard-write"`); where it cannot, the copy falls back to a selection copy.
+
 ## 0.5.0 — 2026-11-17
 
 - Languages: the report has a Languages section (and an xlsx sheet) listing the languages each style supports — all everyday letters, upper and lower case — and those one to three letters short, with the letters to add. Data: Unicode CLDR 49 exemplar characters and territory population, 248 languages and scripts, built by `scripts/build_languages.py` into `core/data/languages.json` (104 KB). `issues.json` has `languages`.

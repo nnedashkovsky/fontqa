@@ -23,6 +23,7 @@ DATA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "la
 ALMOST_MAX_MISSING = 3         # letters missing for "one step away"
 ALMOST_MIN_SHARE = 0.7         # and at least this share of the language's letters present
 ALMOST_MIN_SPEAKERS = 1_000_000  # languages smaller than this are not reported as findings
+PARTIAL_MIN_SHARE = 0.4        # the report lists a language that is short of letters from this share on
 
 _DB = None
 
@@ -111,6 +112,7 @@ def database():
         for tag, d in sorted(raw["languages"].items()):
             letters = _letters(decode_units(d["main"]))
             langs.append({"tag": tag, "name": d["name"], "script": d["script"], "speakers": d["speakers"],
+                          "regions": d.get("regions", []),
                           "letters": letters,
                           # every code point any letter needs: one set difference tells most languages apart
                           "cps": frozenset(ord(c) for lo, up in letters for form in (lo, up) if form for c in form)})
@@ -140,7 +142,9 @@ def _coverage(cmap, compose):
     compose: the font positions combining marks (has a GPOS `mark` feature), so a letter that is
     not encoded as one glyph still counts when its base and its mark are.
 
-    Returns {"supported": [lang], "almost": [{"lang": lang, "missing": [strings], "letters": n}]}.
+    Returns {"supported": [lang],
+             "partial": [{"lang", "missing": [strings], "need": [code points], "letters": n missing, "total": n letters}] (from 40%),
+             "almost": the partial ones that are one to three letters short}.
     """
     cache = {}
 
@@ -157,14 +161,14 @@ def _coverage(cmap, compose):
     def ok(form):
         return all(has(ord(c)) for c in form)
 
-    supported, almost = [], []
+    supported, partial = [], []
     for lang in database()["languages"]:
         gone = lang["cps"] - cmap
         if not gone:
             supported.append(lang)
             continue
-        if not compose and len(gone) > 4 * ALMOST_MAX_MISSING:
-            continue  # far too many missing for "one step away"; composing marks could still save letters, so not then
+        if not compose and 1 - len(gone) / len(lang["cps"]) < PARTIAL_MIN_SHARE * 0.75:
+            continue  # far from the language; composing marks could still save letters, so not then
         lost = []  # forms of the missing letters, in order
         letters_missing = 0
         for lo, up in lang["letters"]:
@@ -175,6 +179,10 @@ def _coverage(cmap, compose):
         total = len(lang["letters"])
         if not letters_missing:
             supported.append(lang)
-        elif letters_missing <= ALMOST_MAX_MISSING and (total - letters_missing) / total >= ALMOST_MIN_SHARE:
-            almost.append({"lang": lang, "missing": lost, "letters": letters_missing})
-    return {"supported": supported, "almost": almost}
+        elif (total - letters_missing) / total >= PARTIAL_MIN_SHARE:
+            # the code points to add: those of the missing forms that the font does not map
+            need = sorted({ord(c) for form in lost for c in form if not has(ord(c))})
+            partial.append({"lang": lang, "missing": lost, "letters": letters_missing, "total": total, "need": need})
+    almost = [a for a in partial if a["letters"] <= ALMOST_MAX_MISSING
+              and (a["total"] - a["letters"]) / a["total"] >= ALMOST_MIN_SHARE]
+    return {"supported": supported, "partial": partial, "almost": almost}
