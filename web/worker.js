@@ -19,14 +19,36 @@ let env = null;
 const post = (msg) => self.postMessage(msg);
 const status = (text) => post({ type: "status", text });
 
+/* The core and the rule cards come as one file (core.bundle.json, see bundle.py). A host without it
+   (an old deployment) is read file by file, as before. */
+async function fetchBundle() {
+  const res = await fetch("../core.bundle.json", { cache: "no-cache" });
+  if (res.ok) return res.json();
+  const list = await (await fetch("../core/__list.json", { cache: "no-store" })).json();
+  const names = list.files.filter((f) => f.endsWith(".py") || f.startsWith("data/"));
+  const core = {};
+  await Promise.all(names.map(async (f) => { core[f] = await (await fetch("../core/" + f, { cache: "no-cache" })).text(); }));
+  const rules = {};
+  try {
+    const rl = await (await fetch("../rules/__list.json", { cache: "no-store" })).json();
+    await Promise.all(rl.files.filter((f) => f.endsWith(".md") && !f.includes("/")).map(async (f) => {
+      rules[f] = await (await fetch("../rules/" + f, { cache: "no-cache" })).text();
+    }));
+  } catch (err) { /* no cards: the report falls back to the short texts in the code */ }
+  return { hash: "", core, rules };
+}
+
 async function boot() {
   const t0 = performance.now();
-  status("loading Pyodide");
+  status("loading");
+  // started together: the core bundle and HarfBuzz download while Pyodide itself loads
+  const bundle = fetchBundle();
+  const harfbuzz = createHarfBuzz({ locateFile: (f) => HBJS + f }).then((h) => hbjs(h));
   py = await loadPyodide({ indexURL: PYODIDE });
   status("loading fontTools");
-  await py.loadPackage(["fonttools", "brotli", "micropip"]);
+  await py.loadPackage(["fonttools", "brotli"]);
   status("loading HarfBuzz");
-  self.hb = hbjs(await createHarfBuzz({ locateFile: (f) => HBJS + f }));
+  self.hb = await harfbuzz;
   // glyph id, cluster, x advance, x offset, y offset per glyph, flat: Python reads it as one buffer
   // instead of converting thousands of small objects (core/hbshim.py)
   self.hbFlat = (buffer) => {
@@ -36,30 +58,50 @@ async function boot() {
     return out;
   };
   status("loading the checker core");
-  const list = await (await fetch("../core/__list.json", { cache: "no-store" })).json();
-  py.FS.mkdirTree("/app/core");
-  // fetched in parallel: one by one, the round trips of a static host add up to tens of seconds
-  const coreFiles = list.files.filter((f) => f.endsWith(".py") || f.startsWith("data/"));
-  const texts = await Promise.all(coreFiles.map(async (f) => (await fetch("../core/" + f, { cache: "no-cache" })).text()));
-  coreFiles.forEach((f, i) => {
+  const files = await bundle;
+  for (const [f, text] of Object.entries(files.core)) {
     py.FS.mkdirTree(("/app/core/" + f).split("/").slice(0, -1).join("/"));
-    py.FS.writeFile("/app/core/" + f, texts[i]);
-  });
-  // rule cards: the report quotes "why it matters" and "how it is checked" from them
-  try {
-    const rl = await (await fetch("../rules/__list.json", { cache: "no-store" })).json();
-    py.FS.mkdirTree("/app/rules");
-    const cards = rl.files.filter((f) => f.endsWith(".md") && !f.includes("/"));
-    const md = await Promise.all(cards.map(async (f) => (await fetch("../rules/" + f, { cache: "no-cache" })).text()));
-    cards.forEach((f, i) => py.FS.writeFile("/app/rules/" + f, md[i]));
-  } catch (err) { /* no cards: the report falls back to the short texts in the code */ }
+    py.FS.writeFile("/app/core/" + f, text);
+  }
+  py.FS.mkdirTree("/app/rules");
+  for (const [f, text] of Object.entries(files.rules)) py.FS.writeFile("/app/rules/" + f, text);
   py.runPython(`import sys\nif "/app" not in sys.path: sys.path.insert(0, "/app")`);
   env = JSON.parse(py.runPython(`import json\nfrom core.inventory import environment\njson.dumps(environment())`));
   env.levels = JSON.parse(py.runPython(`import json\nfrom core import levels\nfrom core.checks import load_all, PRESETS, CATEGORIES, catalog\nload_all()\njson.dumps({"css": levels.CSS, "panel": levels.panel(), "presets": PRESETS, "categories": CATEGORIES, "catalog": catalog()})`));
   env.harfbuzz = self.hb.version_string();
   env.pyodide = py.version;
+  env.bundle = files.hash;
   env.boot_ms = Math.round(performance.now() - t0);
   post({ type: "ready", env });
+  // micropip is only for packages added later (xlsx, variable-font checks, Font Bakery): load it after the page is ready
+  micropipReady = py.loadPackage("micropip");
+}
+let micropipReady = Promise.resolve();
+
+/* Pure-Python packages are installed from wheels served next to the site (wheels.json), so no request goes
+   to PyPI; a host without them (the local server) falls back to PyPI. */
+let wheelIndex;
+async function ensurePackages(names) {
+  await micropipReady;
+  if (wheelIndex === undefined) {
+    try { const r = await fetch("../wheels.json"); wheelIndex = r.ok ? await r.json() : null; } catch (err) { wheelIndex = null; }
+  }
+  const urls = {};
+  for (const n of names) urls[n] = ((wheelIndex || {})[n] || []).map((f) => new URL("../wheels/" + f, self.location.href).href);
+  py.globals.set("PKGS", JSON.stringify(names));
+  py.globals.set("WHEEL_URLS", JSON.stringify(urls));
+  await py.runPythonAsync(`
+import importlib, json, micropip
+for name in json.loads(PKGS):
+    try:
+        importlib.import_module(name)
+    except ImportError:
+        urls = json.loads(WHEEL_URLS).get(name)
+        if urls:
+            await micropip.install(urls, deps=False)
+        else:
+            await micropip.install(name)
+`);
 }
 
 /* ---------- facts cache (IndexedDB) ---------- */
@@ -116,6 +158,7 @@ function writeFiles(role, files) {
 }
 
 async function runPy(code, args) {
+  await micropipReady;
   py.globals.set("ARGS", JSON.stringify(args || {}));
   py.globals.set("progress_js", (n, total, path) => post({ type: "progress", n, total, path }));
   const out = await py.runPythonAsync(code);
@@ -220,27 +263,18 @@ json.dumps(probes.run_fontbakery([(f"/in/{a['role']}/{p}", p) for p in a["paths"
 `, { role, paths });
       }
     }
-    status("installing openpyxl and munkres");
-    await runPy(`
-import json, micropip
-try:
-    import openpyxl
-except ImportError:
-    await micropip.install("openpyxl")
-try:  # varLib.interpolatable matches contours with munkres (or scipy) — pure Python, small
-    import munkres
-except ImportError:
-    await micropip.install("munkres")
-json.dumps(True)
-`, {});
+    if ((facts || []).some((f) => f.variation)) {  // varLib.interpolatable matches contours with munkres
+      status("preparing the variable-font checks");
+      await ensurePackages(["munkres"]);
+    }
     status("inspecting");
+    py.globals.set("stage_js", (text) => post({ type: "stage", text }));
     const out = await runPy(`
 import base64, json
 from core import hbshim
 hbshim.install()  # vf.vs_static shapes text through the uharfbuzz API
 from core.inspection import run
 from core.report_html import render as render_html
-from core.report_xlsx import render as render_xlsx
 a = json.loads(ARGS)
 facts = [dict(f) for f in a["facts"]] if a["facts"] else None
 paths = [(f"/in/{a['role']}/{p}", p) for p in a["paths"]]
@@ -251,16 +285,13 @@ if a["profile"]:  # window.checker.runInspection({profile: true}) — where the 
     prof.enable()
 r = run(paths, ots=a["ots"], fontbakery=a["fb"],
         font_json=a["fontJson"], facts=facts, progress=lambda n, t, p: progress_js(n, t, p), level=a["level"],
-        preset=a["preset"], only=a["only"])
-pages, extra = {}, ""
+        preset=a["preset"], only=a["only"], stage=lambda text: stage_js(text))
+names, extra = [], ""
 if a["attachments"]:
+    stage_js("attachments")
     from core import attachments as att
-    att.REF_DIR = "/in/reference/PT-EXPERT_FONTS"
     views = att.views_for(paths, facts)
-    up, it = att.default_refs([(p.split("/")[-1].rsplit(".", 1)[0], f"/in/reference/{p}") for p in a["refs"]])
-    pages = att.build(views, up, it, r["title"])
-    if r.get("menus"):
-        pages["menus.html"] = att.menus_page(r)
+    names = att.names(views, bool(r.get("menus")))
     extra = att.specimen_section(views)
 profile = ""
 if prof:
@@ -271,11 +302,42 @@ if prof:
     buf.write(chr(10) + "--- by own time" + chr(10))  # no backslashes inside the JS template
     pstats.Stats(prof, stream=buf).sort_stats("tottime").print_stats(40)
     profile = buf.getvalue()
-json.dumps({"issues": r, "profile": profile, "html": render_html(r, extra, list(pages)), "xlsx": base64.b64encode(render_xlsx(r)).decode(),
-            "pages": pages}, ensure_ascii=False, sort_keys=True)
+stage_js("report")
+json.dumps({"issues": r, "profile": profile, "html": render_html(r, extra, names), "pages": names}, ensure_ascii=False, sort_keys=True)
 `, { role, paths, facts, ots, fb, fontJson, refs: refs || [], attachments: attachments !== false, profile: !!profile, level: level || "designer", preset: preset || null, only: only || null });
     out.ms = Math.round(performance.now() - t0);
     return out;
+  },
+
+  // an attachment page is built when someone opens it: building all of them took most of a check
+  async page({ name, paths, facts, refs, title, issues }) {
+    return runPy(`
+import json
+from core import hbshim
+hbshim.install()
+from core import attachments as att
+a = json.loads(ARGS)
+if a["name"] == "menus.html":
+    html = att.menus_page(a["issues"])
+else:
+    att.REF_DIR = "/in/reference/PT-EXPERT_FONTS"
+    paths = [(f"/in/target/{p}", p) for p in a["paths"]]
+    facts = [dict(f) for f in a["facts"]]
+    views = att.views_for(paths, facts)
+    up, it = att.default_refs([(p.split("/")[-1].rsplit(".", 1)[0], f"/in/reference/{p}") for p in a["refs"]])
+    html = att.build_one(views, a["name"], up, it, a["title"])
+json.dumps({"html": html})
+`, { name, paths, facts, refs: refs || [], title, issues });
+  },
+
+  // the workbook is built when someone asks for it: openpyxl is installed then, not at every check
+  async xlsx({ issues }) {
+    await ensurePackages(["openpyxl"]);
+    return runPy(`
+import base64, json
+from core.report_xlsx import render
+json.dumps({"xlsx": base64.b64encode(render(json.loads(ARGS)["issues"])).decode()})
+`, { issues });
   },
 
   async compare({ a, b }) {

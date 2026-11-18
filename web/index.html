@@ -340,6 +340,7 @@ worker.onmessage = (e) => {
   const m = e.data;
   if (m.type === "status") return engine(m.text + "…");
   if (m.type === "progress") return progress(m.n + 1, m.total, m.path);
+  if (m.type === "stage") { state.stage = m.text; $("#insp-state").textContent = "running · " + m.text; return; }
   if (m.type === "fatal") return engine("Engine failed: " + m.error, true);
   if (m.type === "ready") {
     state.env = m.env;
@@ -367,12 +368,19 @@ function engine(text, err, html) {
   el.classList.toggle("err", !!err);
   if (html) el.innerHTML = text; else el.textContent = text;
 }
+// the files done so far, the time left (estimated once a tenth is done) and the share in the tab title
 function progress(n, total, path) {
   const el = $("#progress");
-  if (!total) { el.hidden = true; return; }
+  if (!total) { el.hidden = true; document.title = "Font QA"; return; }
   el.hidden = n >= total;
   el.querySelector("i").style.width = (100 * n / total) + "%";
-  el.querySelector("span").textContent = `${n} / ${total} · ${path || ""}`;
+  let eta = "";
+  if (state.runStart && n / total >= 0.1 && n < total) {
+    const left = Math.round(((performance.now() - state.runStart) / 1000) * (total - n) / n);
+    if (left >= 3) eta = ` · about ${left >= 90 ? Math.round(left / 60) + " min" : left + " s"} left`;
+  }
+  el.querySelector("span").textContent = `${n} / ${total}${eta} · ${path || ""}`;
+  document.title = n >= total ? "Font QA" : `Font QA · ${Math.round(100 * n / total)} %`;
 }
 
 /* ---------- reading files ---------- */
@@ -612,6 +620,8 @@ async function runInspection(opts = {}) {
   btn.disabled = true;
   $("#insp-state").textContent = "running…";
   const t0 = performance.now();
+  state.runStart = t0;
+  state.stage = "";
   try {
     const out = await call("inspect", {
       role: "target",
@@ -639,7 +649,9 @@ async function runInspection(opts = {}) {
     $("#insp-state").innerHTML = `<span style="color:var(--warn)">failed: ${esc(err.message.split("\n").slice(-2).join(" "))}</span>`;
   } finally {
     state.busy = false;
+    state.runStart = 0;
     btn.disabled = false;
+    document.title = "Font QA";
   }
 }
 
@@ -691,8 +703,8 @@ function renderInspection(out) {
       <button class="btn" data-get="xlsx" title="${esc(base)}-report.xlsx">report.xlsx</button>
       <button class="btn" data-get="json" title="${esc(base)}-issues.json">issues.json</button>
     </div>
-    ${Object.keys(out.pages || {}).length ? `<div class="insp-dl"><span class="muted" style="font-size:11.5px;align-self:center">attachments:</span>` +
-      Object.keys(out.pages).map((n) => `<button class="btn" data-page="${esc(n)}">${esc(n)}</button>`).join("") + `</div>` : ""}
+    ${(out.pages || []).length ? `<div class="insp-dl"><span class="muted" style="font-size:11.5px;align-self:center">attachments:</span>` +
+      out.pages.map((n) => `<button class="btn" data-page="${esc(n)}">${esc(n)}</button>`).join("") + `</div>` : ""}
     ${r.scope && r.scope.partial ? `<p class="note">Partial run: ${r.scope.run} of ${r.scope.available} checks.</p>` : ""}`;
   // allow-scripts only: the report is the file that gets downloaded and must not reach this page;
   // popups let its "rule" links open in a new tab, and the page and the report talk by messages
@@ -709,10 +721,23 @@ function renderInspection(out) {
     window.open(url, "_blank");
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
-  $("#insp-result").onclick = (e) => {
+  $("#insp-result").onclick = async (e) => {
     const pg = e.target.closest("[data-page]");
     if (pg) {
-      const url = URL.createObjectURL(new Blob([out.pages[pg.dataset.page]], { type: "text/html" }));
+      const name = pg.dataset.page;
+      if (!out.built) out.built = {};
+      if (!out.built[name]) {  // built on the first click, not at every check
+        const label = pg.textContent;
+        pg.disabled = true;
+        pg.textContent = "building…";
+        try {
+          out.built[name] = (await call("page", { name, paths: state.target.map((f) => f.path), facts: state.results.inventory.files,
+            refs: state.refs.filter((f) => f.custom).map((f) => f.path), title: out.issues.title, issues: out.issues })).html;
+        } catch (err) { pg.textContent = "failed"; setTimeout(() => { pg.textContent = label; pg.disabled = false; }, 2000); return; }
+        pg.textContent = label;
+        pg.disabled = false;
+      }
+      const url = URL.createObjectURL(new Blob([out.built[name]], { type: "text/html" }));
       if (e.altKey) { window.open(url, "_blank"); return; }
       const a = Object.assign(document.createElement("a"), { href: url, download: pg.dataset.page });
       a.click();
@@ -724,6 +749,15 @@ function renderInspection(out) {
     const kind = b.dataset.get;
     let blob;
     if (kind === "xlsx") {
+      if (!out.xlsx) {  // built on the first request: openpyxl is installed then, not at every check
+        const label = b.textContent;
+        b.disabled = true;
+        b.textContent = "building…";
+        try { out.xlsx = (await call("xlsx", { issues: out.issues })).xlsx; }
+        catch (err) { b.textContent = "failed"; setTimeout(() => { b.textContent = label; }, 2000); b.disabled = false; return; }
+        b.textContent = label;
+        b.disabled = false;
+      }
       const bin = Uint8Array.from(atob(out.xlsx), (c) => c.charCodeAt(0));
       blob = new Blob([bin], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     } else if (kind === "json") {
@@ -971,6 +1005,15 @@ dropZone($("#drop-json"), async (items) => {
 }, $("#in-json"));
 document.addEventListener("dragover", (e) => e.preventDefault());
 document.addEventListener("drop", (e) => e.preventDefault());
+
+/* ---------- service worker: the page starts without the network after the first visit ---------- */
+// not on localhost: a worker there would hand out old code while the page is being edited
+try {
+  const local = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  if ("serviceWorker" in navigator && (!local || localStorage.getItem("fontqa:sw") === "1")) {
+    navigator.serviceWorker.register("../sw.js").catch(() => {});
+  }
+} catch (err) { /* private mode or blocked storage: the page works without it */ }
 
 /* ---------- start ---------- */
 (async () => {

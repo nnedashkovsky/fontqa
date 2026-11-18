@@ -101,6 +101,34 @@ def main():
                     print(f"{level}: {len(res['diffs'])} differences")
                     for d in res["diffs"][:20]:
                         print("  ", d["at"], "| terminal:", d["a"], "| browser:", d["b"])
+            # the workbook is built on request, in the browser
+            import base64, io
+            import openpyxl
+            xlsx = page.evaluate("async () => (await window.checker.call('xlsx', {issues: window.checker.state.report.issues})).xlsx")
+            names = openpyxl.load_workbook(io.BytesIO(base64.b64decode(xlsx))).sheetnames
+            if not {"Summary", "Issues", "Coverage", "Languages"} <= set(names):
+                failed = True
+                print("xlsx built in the browser lacks sheets:", names)
+            else:
+                print(f"xlsx built in the browser: {len(names)} sheets")
+            # attachments: the check returns only their names, each page is built on request
+            lazy = page.evaluate("""async ([rels]) => {
+              const c = window.checker; c.state.busy = false;
+              const out = await c.runInspection({ attachments: true, level: "engineer" });
+              const r = { names: out.pages, built: {} };
+              for (const n of out.pages) {
+                const p = await c.call("page", { name: n, paths: c.state.target.map((f) => f.path), facts: c.state.results.inventory.files,
+                  refs: [], title: out.issues.title, issues: out.issues });
+                r.built[n] = p.html.length;
+              }
+              return r;
+            }""", [rels])
+            small = [n for n, size in lazy["built"].items() if size < 500]
+            if not lazy["names"] or small:
+                failed = True
+                print("attachments:", "no pages" if not lazy["names"] else f"empty pages {small}")
+            else:
+                print(f"attachments built on request: {len(lazy['names'])} pages")
             browser.close()
         server.shutdown()
     finally:

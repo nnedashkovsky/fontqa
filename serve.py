@@ -54,6 +54,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if self.path.split("?")[0] == "/core.bundle.json":
+            sys.path.insert(0, HERE)
+            import bundle
+            body = bundle.dumps(HERE).encode()  # rebuilt per request: edits to core/ show on reload
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path.split("?")[0].endswith("/__list.json"):
             folder = self.translate_path(self.path.split("?")[0][: -len("__list.json")])
             if not os.path.isdir(folder):

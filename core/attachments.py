@@ -403,18 +403,37 @@ def views_for(paths, facts=None):
     return [FontView(p, by[r]) for p, r in paths if r in by]
 
 
-def build(views, refs_upright, refs_italic, title):
-    """{file name: html} for every attachment."""
-    out = {}
+def _grid_name(v):
+    return "glyphs-" + "".join(ch if ch.isalnum() else "-" for ch in v.label()).strip("-").lower() + ".html"
+
+
+def names(views, menus=False):
+    """The attachment file names, without building any of them."""
+    styles = pick_styles(views)
+    out = [_grid_name(v) for v in styles]
+    if styles:
+        out += ["gsub.html", "proofs.html"]
+    if menus:
+        out.append("menus.html")
+    return out
+
+
+def build_one(views, name, refs_upright, refs_italic, title):
+    """One attachment's html by its file name (the menus page is built by `menus_page`)."""
     styles = pick_styles(views)
     for v in styles:
-        refs = refs_italic if v.italic else refs_upright
-        name = "glyphs-" + "".join(ch if ch.isalnum() else "-" for ch in v.label()).strip("-").lower() + ".html"
-        out[name] = glyph_grid(v, refs, f"{v.label()} — glyph comparison")
-    if styles:
-        out["gsub.html"] = gsub_listing(styles, title)
-        out["proofs.html"] = proofs(styles, title)
-    return out
+        if _grid_name(v) == name:
+            return glyph_grid(v, refs_italic if v.italic else refs_upright, f"{v.label()} — glyph comparison")
+    if name == "gsub.html":
+        return gsub_listing(styles, title)
+    if name == "proofs.html":
+        return proofs(styles, title)
+    raise KeyError(name)
+
+
+def build(views, refs_upright, refs_italic, title):
+    """{file name: html} for every attachment."""
+    return {n: build_one(views, n, refs_upright, refs_italic, title) for n in names(views)}
 
 
 # ------------------------------------------------------------------ menus and checklist

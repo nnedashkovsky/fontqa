@@ -10,3 +10,4 @@ _site/
 *.glyphs
 reports/
 .pytest_cache/
+.wheels/

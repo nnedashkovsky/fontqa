@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.0 — 2026-11-18
+
+Speed. Measured with `tests/perf.py` in headless Chromium (CDNs are the real ones).
+
+- One file instead of 68: the engine (`core/`, rules, data) is served as `core.bundle.json`, hashed; own requests at start went from 94 to 4. `./serve.sh` builds it on the fly.
+- Nothing is installed from PyPI at check time: openpyxl and munkres are wheels on the site (`wheels.json`), installed with `micropip` without dependency lookup; PyPI requests during checks went from 9 to 0. The workbook is built when you ask for `report.xlsx`, not at every check.
+- Offline: a service worker keeps the site and the Pyodide/HarfBuzz files (CDN cache-first, own files network-first). After the first visit the page starts without a network. Not registered on localhost (set `localStorage.fontqa:sw = "1"` to try it).
+- Progress: the engine reports its stage (reading, inspecting, attachments, report) and the page shows an estimate of the time left and the percentage in the tab title.
+- Attachment pages (glyph grids, GSUB, proofs, menus) are built when you open them, not at every check: a check of two fonts with attachments went from about 20 s to 0.4 s.
+- Cold start 6.6 → 4.6 s, first Designer check 4.4 → 1.7 s, 60 small files 2.0 → 1.2 s.
+
 ## 0.7.0 — 2026-11-18
 
 - Coverage section: tabs **Character sets** and **Languages**, the same list of bars with filters, what to add and copy buttons.

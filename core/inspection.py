@@ -27,11 +27,12 @@ CELL = {"fix": "×", "confirm": "△", "ok": "○", "pass": "○", "n/a": "—",
 
 
 def run(paths, profile="release", ots=None, fontbakery=None, font_json=None, facts=None,
-        progress=None, today=None, only=None, level="engineer", preset=None):
+        progress=None, today=None, only=None, level="engineer", preset=None, stage=None):
     """Inspect (abs path, relpath) pairs; returns the issues.json dict.
 
     `only` is a list of check-id prefixes ("vf.", "names.gdi_length") to run a subset.
     `preset` names a selection from checks.PRESETS; it cannot be combined with `only`.
+    `stage` is called with a short text when a later part of the run starts (the page shows it).
     `level` is "designer" (the drawing checks) or "engineer" (everything); see core/levels.py.
     """
     load_all()
@@ -133,6 +134,8 @@ def run(paths, profile="release", ots=None, fontbakery=None, font_json=None, fac
         v.release()
 
     # ---- family and package checks on the light caches
+    if stage:
+        stage("family and package checks")
     for c in checks:
         if c.scope == "family":
             for group in families(views):
@@ -156,11 +159,17 @@ def run(paths, profile="release", ots=None, fontbakery=None, font_json=None, fac
             if v.ok:
                 status[c.id].setdefault(v.rel, "n/a")
 
+    if stage:
+        stage("collecting findings")
     issues, symptoms = _aggregate(hits, today)
     if level == "engineer":
+        if stage:
+            stage("menu simulation")
         menus, symptoms = _menus(views, issues, symptoms, {c.id for c in checks})
     else:  # the menu simulation reads names and tables: an engineer's view
         menus = None
+    if stage:
+        stage("character sets and languages")
     result = {
         "schema": "fontqa/issues 1",
         "title": _title(views),

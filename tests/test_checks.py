@@ -550,3 +550,47 @@ def test_workbook_coverage_sheet_lists_every_set(tmp_path):
     assert {r[1] for r in rows[1:]} == set(result["charsets"]["sets"])
     cp1250 = next(r for r in rows[1:] if r[1] == "Central European (cp1250)")
     assert cp1250[6] < 100 and "U+0151" in cp1250[7]
+
+
+# ------------------------------------------------------------------ start-up: bundle, stages, site
+
+def test_bundle_holds_the_core_and_the_cards_and_its_hash_follows_them(tmp_path):
+    import shutil
+    sys.path.insert(0, os.path.join(HERE, ".."))
+    import bundle
+    b = bundle.make()
+    assert "__init__.py" in b["core"] and "checks/names.py" in b["core"] and "data/languages.json" in b["core"]
+    assert "names.gdi_length.md" in b["rules"] and not any("__pycache__" in k for k in b["core"])
+    assert bundle.make()["hash"] == b["hash"]
+    # a copy with one word changed has another hash
+    shutil.copytree(os.path.join(HERE, "..", "core"), tmp_path / "core", ignore=shutil.ignore_patterns("__pycache__"))
+    shutil.copytree(os.path.join(HERE, "..", "rules"), tmp_path / "rules")
+    assert bundle.make(str(tmp_path))["hash"] == b["hash"]
+    (tmp_path / "rules" / "names.gdi_length.md").write_text(b["rules"]["names.gdi_length.md"] + "\nedited\n")
+    assert bundle.make(str(tmp_path))["hash"] != b["hash"]
+
+
+def test_run_tells_its_stages(tmp_path):
+    fk.family(tmp_path)
+    paths = inventory.collect([str(tmp_path)])
+    seen = []
+    run(paths, ots={rel: "ok" for _, rel in paths}, stage=seen.append)
+    assert seen == ["family and package checks", "collecting findings", "menu simulation", "character sets and languages"]
+    seen.clear()
+    run(paths, level="designer", ots={rel: "ok" for _, rel in paths}, stage=seen.append)
+    assert "menu simulation" not in seen and seen[-1] == "character sets and languages"
+
+
+def test_built_site_loads_in_one_request_and_has_what_the_page_installs(tmp_path):
+    import json
+    sys.path.insert(0, os.path.join(HERE, ".."))
+    import build_site
+    build_site.main(str(tmp_path))
+    data = json.load(open(tmp_path / "core.bundle.json", encoding="utf-8"))
+    sw = (tmp_path / "sw.js").read_text()
+    assert f'VERSION = "{data["hash"]}"' in sw and "__VERSION__" not in sw
+    assert not (tmp_path / "web" / "sw.js").exists(), "the worker script belongs at the site root, where its scope is the whole site"
+    wheels = json.load(open(tmp_path / "wheels.json"))
+    assert set(wheels) == {"openpyxl", "munkres"}
+    assert all((tmp_path / "wheels" / f).exists() for names in wheels.values() for f in names)
+    assert (tmp_path / "wheels" / wheels["munkres"][0]).stat().st_size > 1000
