@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0 — 2026-11-18
+
+- Coverage section: tabs **Character sets** and **Languages**, the same list of bars with filters, what to add and copy buttons.
+- Character sets: 29 instead of 7 — ASCII, ISO 8859-1, Windows code pages 1250–1258, Adobe Latin 1–5 and the Google Fonts glyphsets (Latin Kernel / Core / Plus / African / Vietnamese, Cyrillic Core / Plus / Pro, Greek Core / Plus / Pro, Arabic Core / Plus). Filters: complete / with missing / under 10 % short; script; source; sort by coverage, size or name. The copy buttons above the list give the union for the sets shown.
+- Data: `core/data/charsets.json` is now a compact range format with metadata, built by `scripts/build_charsets.py`; the Google Fonts sets are Apache-2.0 (`LICENSE-GLYPHSETS.txt`). `core/charsets.py` reads it and computes coverage.
+- `issues.json`: `charsets` (groups of styles, `have` per set, `missing` as ranges) replaces `coverage`. The xlsx Coverage sheet is one row per style group and set, with the share and the code points to add.
+- The detail tables are written compactly (40 rows each, the buttons copy all): a Squishy Blob report went from 512 to 326 KB.
+- Row data carries only the characters and the AGL names; code points and `uniXXXX` names are derived in the page.
+
 ## 0.6.0 — 2026-11-17
 
 - Languages in the report are a list of bars: every language the font supports, and every language of which it has at least 40 % of the letters, each with its share and count (e.g. Hungarian 80,6 % — 29/36), after Font Analyzer's Languages tab.

@@ -15,29 +15,19 @@ from collections import Counter, defaultdict
 from . import Hit, check, families, files_of, sfnt, static
 from ..fontview import glyph_label, is_blank_codepoint
 
-DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
-_CHARSETS = None
 CURRENCIES = (0x24, 0x20AC, 0xA3, 0xA5, 0xA2)
 
 
 def charsets():
-    global _CHARSETS
-    if _CHARSETS is None:
-        with open(os.path.join(DATA, "charsets.json"), encoding="utf-8") as fh:
-            _CHARSETS = {k: set(v) for k, v in json.load(fh).items() if not k.startswith("_")}
-    return _CHARSETS
+    """{name: set of code points} (core/charsets.py)."""
+    from .. import charsets as cs
+    return cs.sets()
 
 
 def cp_label(cp):
     ch = chr(cp)
     shown = ch if unicodedata.category(ch)[0] not in "CZM" else ""
     return f"U+{cp:04X}{' ' + shown if shown else ''}"
-
-
-def coverage(view):
-    """{charset name: (have, total, missing codepoints)} — for the Coverage sheet."""
-    cmap = set(view.cmap)
-    return {name: (len(cps & cmap), len(cps), sorted(cps - cmap)) for name, cps in charsets().items()}
 
 
 @check(id="charset.family_same", category="C", scope="family",

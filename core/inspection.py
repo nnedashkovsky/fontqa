@@ -18,7 +18,6 @@ from collections import Counter, defaultdict
 
 from . import VERSION, inventory, rules
 from .checks import CATEGORIES, REGISTRY, families, in_level, load_all, preset_prefixes
-from .checks.charset import coverage
 from .fontview import FontView, assign_outline_keys
 
 ACTION_ORDER = {"fix": 0, "confirm": 1, "ok": 2}
@@ -184,7 +183,7 @@ def run(paths, profile="release", ots=None, fontbakery=None, font_json=None, fac
         "menus": menus,
         "matrix": _matrix(checks, views, status),
         "fonts": _fonts_table(views),
-        "coverage": _coverage(views),
+        "charsets": _charsets(views),
         "languages": _languages(views),
         "errors": errors,
     }
@@ -367,20 +366,30 @@ def _fonts_table(views):
     return {"fields": [k for k, _ in FONT_FIELDS], "rows": list(rows.values())}
 
 
-def _coverage(views):
-    seen, out = set(), []
+def _charsets(views):
+    """How much of every named character set each style has; styles with the same answer share a group.
+
+    Missing code points are stored as ranges: whole blocks missing stay a few numbers.
+    """
+    from . import charsets as cs
+    db = cs.database()
+    groups = {}
     for v in views:
-        if not v.ok or (v.family, v.subfamily, v.variable) in seen:
+        if not (v.ok and v.is_sfnt):
             continue
-        seen.add((v.family, v.subfamily, v.variable))
-        cov = coverage(v)
-        next_level = next((n for n in cov if n.startswith("Adobe") and cov[n][0] < cov[n][1]), None)
-        out.append({"path": v.rel, "family": v.family, "style": v.subfamily,
-                    "sets": {n: [have, total] for n, (have, total, _) in cov.items()},
-                    "next_level": next_level,
-                    "missing_for_next": [f"U+{c:04X}" for c in cov[next_level][2]][:200] if next_level else []})
+        cov = cs.coverage(v.cmap)
+        have = {n: c["have"] for n, c in cov.items()}
+        missing = {n: cs.ranges(c["missing"]) for n, c in cov.items() if c["missing"]}
+        key = json.dumps([have, missing])
+        label = f"{v.family} {v.subfamily}" + (" (variable)" if v.variable else "")
+        groups.setdefault(key, {"styles": set(), "have": have, "missing": missing})["styles"].add(label)
         v.release()
-    return out
+    out = sorted(({"styles": sorted(g["styles"]), "have": g["have"], "missing": g["missing"]} for g in groups.values()),
+                 key=lambda g: g["styles"])
+    return {"source": db["source"],
+            "sets": {n: {"script": db["meta"][n]["script"], "group": db["meta"][n]["group"], "note": db["meta"][n]["note"],
+                         "total": len(c)} for n, c in db["sets"].items()},
+            "groups": out}
 
 
 def _languages(views):

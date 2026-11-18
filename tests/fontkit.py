@@ -7,6 +7,7 @@ fire. The fonts are not meant to be looked at.
 """
 
 import os
+import sys
 from array import array
 
 from fontTools.fontBuilder import FontBuilder
@@ -22,10 +23,10 @@ BLANK = {0x20, 0xA0, 0xAD}
 
 
 def western():
-    import json
-    here = os.path.dirname(os.path.abspath(__file__))
-    with open(os.path.join(here, "..", "core", "data", "charsets.json"), encoding="utf-8") as fh:
-        return sorted(json.load(fh)["Western European (cp1252)"])
+    """The Windows-1252 printable characters: the set the store minimum asks for."""
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+    from core import charsets
+    return sorted(charsets.sets()["Western European (cp1252)"])
 
 
 def gname(cp):

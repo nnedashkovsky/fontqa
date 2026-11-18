@@ -150,13 +150,20 @@ def render(r):
             if c.value in CELL_FILL:
                 c.fill = CELL_FILL[c.value]
 
-    # ---- Coverage
-    if r["coverage"]:
-        names = list(r["coverage"][0]["sets"])
-        _sheet(wb, "Coverage", ["File", "Family", "Style"] + names + ["Next level", "Missing for next level"],
-               [[c["path"], c["family"], c["style"]] + [f"{h}/{t}" for h, t in (c["sets"][n] for n in names)]
-                + [c["next_level"] or "complete", " ".join(c["missing_for_next"])] for c in r["coverage"]],
-               [44, 20, 18] + [14] * len(names) + [16, 80], wrap=(len(names) + 5,))
+    # ---- Coverage: one row per style group and character set
+    cset = r.get("charsets") or {}
+    if cset.get("groups"):
+        from . import charsets as cs
+        rows = []
+        for g in cset["groups"]:
+            styles = "; ".join(g["styles"])
+            for name, info in cset["sets"].items():
+                have = g["have"][name]
+                miss = cs.expand(g["missing"].get(name, []))
+                rows.append([styles, name, info["group"], info["script"], info["total"], have, round(100 * have / info["total"], 1),
+                             " ".join(f"U+{c:04X} {chr(c)}" for c in miss[:400]) + (f" … (+{len(miss) - 400})" if len(miss) > 400 else "")])
+        _sheet(wb, "Coverage", ["Styles", "Character set", "Source", "Script", "Characters", "Covered", "Covered, %", "Code points to add"], rows,
+               [50, 30, 14, 10, 12, 10, 12, 80], wrap=(1, 8))
 
     # ---- Languages
     langs = r.get("languages") or {}

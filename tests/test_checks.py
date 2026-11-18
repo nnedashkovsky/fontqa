@@ -422,7 +422,8 @@ def test_languages_section_is_in_the_report_and_the_workbook(tmp_path):
     langs = result["languages"]
     assert langs["groups"] and all(t in langs["names"] for g in langs["groups"] for t in g["supported"])
     assert len(langs["groups"]) == 1, "Regular and Bold (and their web copies) cover the same languages"
-    assert "<h2>Languages</h2>" in render(result)
+    page = render(result)
+    assert "<h2>Coverage</h2>" in page and "data-pane='langs'" in page and "id='languages'" in page
     wb = openpyxl.load_workbook(io.BytesIO(render_xlsx(result)))
     assert "Languages" in wb.sheetnames
     statuses = {row[4] for row in wb["Languages"].iter_rows(min_row=2, values_only=True)}
@@ -458,7 +459,7 @@ def test_report_languages_are_rows_with_filters_and_copyable_letters(tmp_path):
     row = re.search(r"<div class='lrow [a-z]+' data-name=\"hungarian\".*?</div></div>", html, re.S)
     assert row, "Hungarian is 4 letters short of a Windows-1252 font and gets a row"
     text = row.group(0)
-    assert 'data-uni="U+0150 U+0151 U+0170 U+0171"' in text
+    assert 'data-chars="ŐőŰű"' in text and 'data-names="Ohungarumlaut ohungarumlaut Uhungarumlaut uhungarumlaut"' in text
     assert "Ohungarumlaut" in text and "LATIN CAPITAL LETTER O WITH DOUBLE ACUTE" in text
     assert "data-f='region:EU'" in html and "data-f='status:near'" in html and "data-union='names'" in html
     # a supported language shows its real letter count, not 1/1
@@ -475,3 +476,77 @@ def test_workbook_languages_sheet_has_percent_and_code_points(tmp_path):
     assert rows[0][5] == "Letters covered, %" and rows[0][6] == "Code points to add"
     hu = next(r for r in rows[1:] if r[1] == "Hungarian")
     assert hu[4] in ("one step away", "partial") and "U+0151" in hu[6] and 80 < hu[5] < 100
+
+
+# ------------------------------------------------------------------ character sets
+
+def test_charset_encoding_round_trips():
+    from core import charsets as cs
+    cps = {0x20, 0x21, 0x22, 0x41, 0x20AC, 0x1F600, 0x1F601}
+    assert cs.decode(cs.encode(cps)) == cps
+    assert cs.expand(cs.ranges(sorted(cps))) == sorted(cps)
+    assert cs.ranges([1, 2, 3, 9]) == [[1, 3], [9, 9]]
+
+
+def test_charsets_cover_the_known_sets_and_keep_the_store_minimum():
+    from core import charsets as cs
+    db = cs.database()
+    assert len(db["sets"]) >= 25 and set(db["sets"]) == set(db["meta"])
+    assert len(db["sets"]["Western European (cp1252)"]) == 218 and len(db["sets"]["ASCII"]) == 95
+    assert db["sets"]["Latin 1 (ISO 8859-1)"] <= db["sets"]["Western European (cp1252)"]
+    assert {m["script"] for m in db["meta"].values()} >= {"Latn", "Cyrl", "Grek", "Arab", "Hebr"}
+    with open(os.path.join(HERE, "..", "core", "data", "LICENSE-GLYPHSETS.txt"), encoding="utf-8") as fh:
+        assert "Apache License" in fh.read()
+
+
+def test_charset_coverage_counts_and_lists_what_is_missing():
+    from core import charsets as cs
+    cov = cs.coverage(set(fk.western()))
+    assert cov["Western European (cp1252)"] == {"have": 218, "total": 218, "missing": []}
+    assert cov["ASCII"]["missing"] == [] and cov["Latin 1 (ISO 8859-1)"]["missing"] == []
+    hu = cov["Central European (cp1250)"]
+    assert hu["have"] < hu["total"] and 0x151 in hu["missing"] and 0x20AC not in hu["missing"]
+    cyr = cov["Cyrillic (cp1251)"]
+    assert cyr["have"] < 0.6 * cyr["total"]  # ASCII and shared punctuation only, no Cyrillic letters
+    # a project's own set joins the list
+    mine = cs.coverage({1, 2}, extra={"Mine": {1, 2, 3}})["Mine"]
+    assert mine == {"have": 2, "total": 3, "missing": [3]}
+
+
+def test_result_charsets_groups_and_stores_missing_as_ranges(tmp_path):
+    from core import charsets as cs
+    fk.family(tmp_path)
+    cset = inspect(tmp_path)["charsets"]
+    assert len(cset["groups"]) == 1, "Regular, Bold and their web copies cover the same sets"
+    g = cset["groups"][0]
+    assert set(g["have"]) == set(cset["sets"])
+    assert g["have"]["Western European (cp1252)"] == 218 and "Western European (cp1252)" not in g["missing"]
+    assert g["missing"]["Central European (cp1250)"] and all(len(r) == 2 for r in g["missing"]["Central European (cp1250)"])
+    total = cset["sets"]["Central European (cp1250)"]["total"]
+    assert g["have"]["Central European (cp1250)"] + len(cs.expand(g["missing"]["Central European (cp1250)"])) == total
+
+
+def test_report_character_sets_are_rows_with_copyable_code_points(tmp_path):
+    import re
+    from core.report_html import render
+    fk.family(tmp_path)
+    page = render(inspect(tmp_path))
+    row = re.search(r"<div class='lrow [a-z]+' data-name=\"central european \(cp1250\)\".*?</div></div>", page, re.S)
+    assert row, "cp1250 is partly covered by a Windows-1252 font and gets a row"
+    text = row.group(0)
+    assert "U+0151" in text and "ohungarumlaut" in text and "ő" in text
+    assert "data-f='group:Windows'" in page and "data-f='script:Cyrl'" in page and "data-f='sort:size'" in page
+    ascii_row = re.search(r"data-name=\"ascii\".*?<div class='lp'>(.*?)</div>", page, re.S).group(1)
+    assert "100.0 %" in ascii_row and "(95/95)" in ascii_row
+
+
+def test_workbook_coverage_sheet_lists_every_set(tmp_path):
+    import io, openpyxl
+    from core.report_xlsx import render as render_xlsx
+    fk.family(tmp_path)
+    result = inspect(tmp_path)
+    rows = list(openpyxl.load_workbook(io.BytesIO(render_xlsx(result)))["Coverage"].iter_rows(min_row=1, values_only=True))
+    assert rows[0][1] == "Character set" and rows[0][7] == "Code points to add"
+    assert {r[1] for r in rows[1:]} == set(result["charsets"]["sets"])
+    cp1250 = next(r for r in rows[1:] if r[1] == "Central European (cp1250)")
+    assert cp1250[6] < 100 and "U+0151" in cp1250[7]

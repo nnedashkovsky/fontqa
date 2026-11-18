@@ -12,7 +12,7 @@ light and dark themes, filters issues in place, and prints to PDF.
 
 import html
 
-from . import VERSION, levels, report_languages
+from . import VERSION, levels, report_coverage
 from .rules import RULES_URL, markdown
 
 ACTION_LABEL = {"fix": "Fix", "confirm": "Confirm", "ok": "Harmless"}
@@ -149,25 +149,8 @@ Status "predicted" means not yet observed in the environment; confirm with scree
             f"<td><a href='#{e(x['parent'])}'>{e(x['parent'])}</a></td><td>{e(x['status'])}</td></tr>" for x in r["symptoms"])
             + "</table></div></section>")
 
-    # ---- coverage
-    if r["coverage"]:
-        names = list(r["coverage"][0]["sets"])
-        head = "".join(f"<th>{e(n)}</th>" for n in names)
-        body = ""
-        for c in r["coverage"]:
-            cells = ""
-            for n in names:
-                have, total = c["sets"][n]
-                full = have == total
-                cells += f"<td class='n {'okc' if full else ''}'>{'✓' if full else f'{have}/{total}'}</td>"
-            nxt = f"<details><summary>{len(c['missing_for_next'])} to {e(c['next_level'])}</summary><code>{e(' '.join(c['missing_for_next']))}</code></details>" if c["next_level"] else "complete"
-            body += f"<tr><td>{e(c['family'])} <b>{e(c['style'])}</b></td>{cells}<td>{nxt}</td></tr>"
-        parts.append(f"""<section><h2>Character set coverage</h2><div class="scroll"><table class="data"><tr><th>Style</th>{head}<th>Next level</th></tr>{body}</table></div></section>""")
-
-    # ---- languages
-    langs = r.get("languages") or {}
-    if langs.get("groups"):
-        parts.append(report_languages.section(langs))
+    # ---- coverage: character sets and languages
+    parts.append(report_coverage.section(r))
 
     # ---- fonts table
     fields = r["fonts"]["fields"]
