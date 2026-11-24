@@ -21,6 +21,8 @@ A font declares what its outlines are in three places: the file's version tag (`
 
 A text engine picks its rasterizer from these declarations. If they disagree it reads quadratic curves as cubic ones or the reverse, so glyphs are empty or distorted — or the font is rejected at install time. A wrong CFF scale draws every glyph too large or too small.
 
+**Tested:** a TrueType font whose version tag said `OTTO` was refused by macOS and Windows. The `maxp` version and the CFF matrix were not tested.
+
 ## How it is checked
 
 - Both `glyf` and `CFF` in one file, `OTTO` with `glyf`, or a TrueType version tag with `CFF` are reported.

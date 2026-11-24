@@ -21,6 +21,8 @@ A TTF or OTF file starts with a 12-byte header (the version tag, the number of t
 
 If the directory is wrong, the system either refuses the file or reads one table's bytes as another's. The font then does not install, is listed as damaged, or draws nothing. Such errors almost always come from editing the file by hand or from a damaged copy, a cut-off download or a sync tool; a font compiler does not produce them.
 
+**Tested:** a font with an unknown version tag, and one cut off before its last table, were both refused by macOS and Windows. A wrong search field alone was not tested.
+
 ## How it is checked
 
 The directory is read from the file itself, not through a font library, so a file that cannot be opened is still examined. These are reported:

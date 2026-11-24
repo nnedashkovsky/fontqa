@@ -7,9 +7,9 @@ level: engineer
 severity: low
 action: fix
 applies: Installable fonts (OTF, TTF outside a Web folder).
-related: names.gdi_length
+related: names.gdi_length, names.full_name_matches
 sources:
-  - OpenType spec, name ID 4 | https://learn.microsoft.com/en-us/typography/opentype/spec/name#name-ids
+  - OpenType spec, name ID 4 (the spec gives no length limit; 63 comes from older Mac and Office code) | https://learn.microsoft.com/en-us/typography/opentype/spec/name#name-ids
 ---
 
 ## What it checks

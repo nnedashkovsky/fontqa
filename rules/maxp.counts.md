@@ -21,6 +21,8 @@ sources:
 
 Tables are read by glyph index. If one holds fewer records than `maxp` promises, the parser reads past its end; if more, glyphs at the end are dropped. The result is a rejected font, missing or shifted glyphs, or wrong widths.
 
+**Tested:** a font whose `maxp` promised 999 glyphs against 220 in the other tables was refused by macOS and Windows.
+
 ## How it is checked
 
 - `hhea.numberOfHMetrics` is between 1 and the glyph count, and `hmtx` is long enough: four bytes for each full metric and two for each remaining left side bearing.

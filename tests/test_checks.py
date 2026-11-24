@@ -170,6 +170,7 @@ CASES = {
     "names.unique": lambda d: [one(d, "A.ttf"), one(d, "B.ttf")],
     "names.required": lambda d: one(d, mutate=lambda f: fk.drop_name(f, 5)),
     "names.postscript": lambda d: one(d, names={"psName": "Test Sans-Regular"}),
+    "names.full_name_matches": lambda d: one(d, names={"fullName": "Test Sans Heavy"}),
     "names.full_name": lambda d: one(d, names={"fullName": "Test Sans " + "Very " * 12 + "Long"}),
     "names.version": lambda d: one(d, names={"version": "1.000"}),
     "names.mac_mirror": lambda d: one(d, mutate=_mac_name),
@@ -281,7 +282,8 @@ def clean(tmp_path_factory):
 
 # Harmless by definition and unavoidable in a font built by fontTools: HVAR has no side-bearing maps.
 # The language hint is true of any Latin font that is not complete (here: Windows-1252 lacks ő ű).
-ALLOWED_ON_CLEAN = {("vf.var_tables", "HVAR without side-bearing maps"),
+ALLOWED_ON_CLEAN = {("names.full_name_matches", "full name differs in case, spacing or Regular"),
+                    ("vf.var_tables", "HVAR without side-bearing maps"),
                     ("charset.languages_almost", "languages one step away")}
 NEED_INPUT = {"external.fontbakery", "release.font_json", "charset.languages_almost"}
 
@@ -374,7 +376,7 @@ def test_partial_run_is_marked_everywhere(tmp_path):
     paths = inventory.collect([str(tmp_path)])
     result = run(paths, preset="differences", ots={rel: "ok" for _, rel in paths})
     assert result["scope"]["run"] == 6 and result["scope"]["partial"]
-    assert "Partial run: 6 of 64 checks" in render(result)
+    assert "Partial run: 6 of 65 checks" in render(result)
     assert render_xlsx(result)[:2] == b"PK"
 
 

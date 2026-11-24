@@ -261,6 +261,50 @@ def postscript(v):
                   expected="≤ 63 printable ASCII, no spaces", summary="PostScript name is invalid: " + ", ".join(why))
 
 
+def full_name_verdict(names):
+    """(verdict, expected full name) for name ID 4.
+
+    expected = typographic family + " " + typographic subfamily, where ID 16 falls back to ID 1 and ID 17 to ID 2
+    (the OpenType spec's own fallback). When ID 16/17 exist, ID 1 + ID 2 are not compared: the spec's examples
+    (Minion Pro SmBd, Adobe Caslon Pro Semibold with ID 2 = Bold) have an ID 1 + ID 2 that differs on purpose.
+
+        match     ID 4 is the expected string
+        harmless  the same words in another case or spacing, or the word "Regular" left out ("Dark Regular" -> "Dark")
+        confirm   other words or another order (the spec allows "a similar human-readable variant")
+        None      ID 4, the family or the style is missing: names.required reports it
+    """
+    full = (names.get("4") or "").strip()
+    base = (names.get("16") or names.get("1") or "").strip()
+    style = (names.get("17") or names.get("2") or "").strip()
+    if not (full and base and style):
+        return None, None
+    expected = f"{base} {style}"
+    norm = lambda text: " ".join(text.split()).casefold()
+    plain = lambda text: " ".join(w for w in text.split() if w.casefold() != "regular").casefold()  # "Regular" left out
+    if full == expected:
+        return "match", expected
+    if norm(full) == norm(expected) or plain(full) == plain(expected):
+        return "harmless", expected
+    return "confirm", expected
+
+
+@check(id="names.full_name_matches", category="F", scope="file", applies=installable,
+       title="Full name is the family and style names put together",
+       classification="Names / Full name / Family and style",
+       what="ID 4 equals ID 16 + ID 17, or ID 1 + ID 2 when there are no typographic names; 'Regular' may be left out",
+       basis="OpenType spec, name ID 4: the full name is generally a combination of IDs 1 and 2, or of IDs 16 and 17.",
+       fix="Build ID 4 from the family and style names: 'Family Style'.", severity="medium", action="confirm")
+def full_name_matches(v):
+    verdict, expected = full_name_verdict(v.names)
+    full = v.names.get("4") or ""
+    if verdict == "harmless":
+        yield Hit(key="full name differs in case, spacing or Regular", measured=_quote(full), expected=_quote(expected),
+                  action="ok", severity="low", summary=f"name ID 4 {_quote(full)} differs from {_quote(expected)} only in case, spacing or 'Regular'")
+    elif verdict == "confirm":
+        yield Hit(key="full name is not the family and style names", measured=_quote(full), expected=_quote(expected),
+                  summary=f"name ID 4 is {_quote(full)}, the family and style names give {_quote(expected)}")
+
+
 @check(id="names.full_name", category="F", scope="file", applies=installable,
        title="Full name is not too long",
        classification="Names / Full name / Length",

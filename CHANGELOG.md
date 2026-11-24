@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.0 — 2026-11-24
+
+- New check `names.full_name_matches` (65 checks): name ID 4 is ID 16 + ID 17, or ID 1 + ID 2 when the font has no typographic names (the spec's own fallback). The word "Regular" may be left out, and the case or spacing may differ (Harmless); other words, another order or a missing family name need confirmation. ID 1 + ID 2 are not compared when ID 16/17 exist: the spec's examples differ there on purpose. Verdict function `full_name_verdict` with 15 cases in `tests/test_full_name.py`.
+- `docs/install-matrix.md`: which fault stops a font from installing on macOS and Windows, what CoreText and Chrome (OTS) accept, and which Font QA check reports it. `scripts/make_install_tests.py` writes the nine test fonts.
+- Rule cards of `sfnt.header`, `sfnt.required_tables`, `sfnt.outline_match` and `maxp.counts` say which faults were tested and refused by macOS and Windows. `head.sane` states only what was verified (CoreText registers a zeroed magic number).
+- `names.full_name`: the source note says the 63-character limit is not in the spec.
+
 ## 0.9.2 — 2026-11-24
 
 - Tested on macOS and Windows: a font with a wrong table checksum, and one with a zeroed `head.magicNumber`, both install. `sfnt.checksums` is now **Harmless** (low), and a wrong magic number in `head.sane` is reported as Harmless; `head.sane` no longer predicts "does not install". Cards updated. Units per em and the loca format stay faults.
