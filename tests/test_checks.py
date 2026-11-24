@@ -129,6 +129,38 @@ def _drop(table):
     return mutate
 
 
+def _patch(path, tag, offset, data):
+    """Overwrite bytes inside a table of a font file: damage a delivery the way a hand edit would."""
+    import struct
+    raw = bytearray(open(path, "rb").read())
+    for i in range(struct.unpack(">H", raw[4:6])[0]):
+        t, _, off, _ = struct.unpack(">4sIII", raw[12 + 16 * i:28 + 16 * i])
+        if t.decode("latin-1") == tag:
+            raw[off + offset:off + offset + len(data)] = data
+    open(path, "wb").write(raw)
+    return path
+
+
+def _patch_header(folder):
+    """searchRange (bytes 6–7 of the file) no longer matches the number of tables."""
+    path = os.path.join(folder, "Desktop", "TestSans-Regular.ttf")
+    raw = bytearray(open(path, "rb").read())
+    raw[6:8] = b"\x00\x01"
+    open(path, "wb").write(raw)
+
+
+def _no_windows_cmap(font):
+    font["cmap"].tables = [t for t in font["cmap"].tables if (t.platformID, t.platEncID) != (3, 1)]
+
+
+def _maxp_cff(font):
+    font["maxp"].tableVersion = 0x00005000
+
+
+def _bad_magic(font):
+    font["head"].magicNumber = 0
+
+
 CASES = {
     # names
     "names.gdi_length": lambda d: one(d, family="Test Sans With A Very Long Family Name"),
@@ -195,6 +227,15 @@ CASES = {
     "vf.var_tables": lambda d: (fk.variable(d, mutate=_drop("HVAR")), {"expect": "No HVAR"})[1],
     "vf.interpolation": lambda d: fk.variable(d, statics=False, bold_shapes={0x41: _rotated_start}),
     "vf.vs_static": lambda d: fk.variable(d, static_bold={"widths": {0x41: 620}}),
+    # installation
+    "sfnt.header": lambda d: (one(d), _patch_header(d))[1],
+    "sfnt.required_tables": lambda d: one(d, mutate=_drop("OS/2")),
+    "sfnt.outline_match": lambda d: one(d, mutate=_maxp_cff),
+    "head.sane": lambda d: one(d, mutate=_bad_magic),
+    "maxp.counts": lambda d: _patch(one(d), "maxp", 4, b"\x03\xe7"),
+    "cmap.usable": lambda d: one(d, mutate=_no_windows_cmap),
+    "sfnt.checksums": lambda d: _patch(one(d), "name", 0, b"\xff"),
+    "os2.fstype": lambda d: one(d, os2={"fsType": 2}),
     # release
     "release.formats": lambda d: fk.family(d, web=False),
     "release.file_names": lambda d: one(d, "Wrong Name.ttf"),
@@ -333,7 +374,7 @@ def test_partial_run_is_marked_everywhere(tmp_path):
     paths = inventory.collect([str(tmp_path)])
     result = run(paths, preset="differences", ots={rel: "ok" for _, rel in paths})
     assert result["scope"]["run"] == 6 and result["scope"]["partial"]
-    assert "Partial run: 6 of 56 checks" in render(result)
+    assert "Partial run: 6 of 64 checks" in render(result)
     assert render_xlsx(result)[:2] == b"PK"
 
 
@@ -613,3 +654,24 @@ def test_spacing_accents_marked_in_gdef_keep_their_width(tmp_path):
         font["GDEF"] = gdef
     features_font(tmp_path, chars=W + [0x301, 0x2D8], widths={0x301: 0, 0x2D8: 327}, mutate=gdef_marks)
     assert not [i for i in inspect(tmp_path, only=["glyphs.mark_widths"])["issues"] if i["check"] == "glyphs.mark_widths"]
+
+
+def test_a_file_the_font_library_cannot_open_is_reported(tmp_path):
+    """A cut-off file used to vanish from the report: every check was 'not applicable' to it."""
+    path = one(tmp_path)
+    raw = open(path, "rb").read()
+    open(path, "wb").write(raw[:-200])
+    found = {i["check"] for i in inspect(tmp_path)["issues"]}
+    assert "sfnt.header" in found
+
+
+def test_install_preset_is_silent_on_a_good_font_and_loud_on_a_broken_one(tmp_path):
+    from core.checks import PRESETS
+    good = tmp_path / "good"
+    one(good)
+    assert not inspect(good, preset="install")["issues"]
+    bad = tmp_path / "bad"
+    _patch(one(bad), "maxp", 4, b"\x03\xe7")
+    found = {i["check"] for i in inspect(bad, preset="install")["issues"]}
+    assert "maxp.counts" in found
+    assert "install" in PRESETS

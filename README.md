@@ -1,6 +1,6 @@
 # Font QA
 
-Inspection of built fonts in the browser. Drop fonts or a whole delivery folder on the page: it lists what you got, runs 56 checks and writes a report in HTML, xlsx and JSON.
+Inspection of built fonts in the browser. Drop fonts or a whole delivery folder on the page: it lists what you got, runs 64 checks and writes a report in HTML, xlsx and JSON.
 
 **Fonts never leave your machine.** The checks are Python (fontTools) running inside the browser through Pyodide; nothing is uploaded.
 
@@ -28,7 +28,7 @@ A dropped folder keeps its structure, so App / Desktop / Web lines of the same f
 Choose a level before the run:
 
 - **Designer** — what concerns the drawing: character set and languages, outlines, metrics and kerning, OpenType features, family tests (21 checks).
-- **Engineer** — everything, including what concerns the file: font tables and names, validators (OTS, Font Bakery), lineages, variable-font tables, release readiness and the menu simulation (all 56 checks). The report also shows how each check measures.
+- **Engineer** — everything, including what concerns the file: font tables and names, validators (OTS, Font Bakery), lineages, variable-font tables, release readiness and the menu simulation (all 64 checks). The report also shows how each check measures.
 
 In the terminal: `./check.sh inspect … --level designer` (the default is `engineer`). The Rules page switches between the two levels.
 
@@ -90,6 +90,10 @@ Compare two runs (or the browser against the terminal):
 ```bash
 ./check.sh compare old/issues.json new/issues.json
 ```
+
+## Install check
+
+The preset **Installs in the operating system** runs the checks that decide whether Windows and macOS accept a file and name it: `sfnt.*` (container, required tables, outline type, checksums), `head.sane`, `maxp.counts`, `cmap.usable`, `os2.fstype`, OTS and the name records. `./check.sh inspect <folder> --preset install`. It does not cover menu order, rendering or conflicts with fonts that are already installed.
 
 ## Speed and offline
 

@@ -173,9 +173,12 @@ class FontView:
         """Glyph order, advance widths and cmap: identical for all copies of one style."""
         def compute():
             h = hashlib.sha256()
-            h.update("\n".join(self.glyph_order).encode())
-            h.update(repr(sorted(self.font["hmtx"].metrics.items())).encode())
-            h.update(repr(sorted(self.cmap.items())).encode())
+            try:
+                h.update("\n".join(self.glyph_order).encode())
+                h.update(repr(sorted(self.font["hmtx"].metrics.items())).encode())
+                h.update(repr(sorted(self.cmap.items())).encode())
+            except Exception:  # a damaged table: the install checks name it; the key just must not stop the run
+                h.update(f"unreadable:{self.facts.get('sha256')}".encode())
             return h.hexdigest()[:16]
         return self._memo("derived_key", compute)
 

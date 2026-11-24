@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.0 — 2026-11-24
+
+- New preset **Installs in the operating system** (Engineer level): only what decides whether a file is accepted and named — the container, required tables, outline type, glyph counts, cmap, checksums, embedding bits, OTS and the name records. Not menu order, rendering or conflicts with installed fonts.
+- 8 new checks (category A, 64 in all): `sfnt.header` (version tag, sorted directory, tables inside the file, alignment, overlaps), `sfnt.required_tables`, `sfnt.outline_match` (version tag, maxp and outline table agree; CFF matrix), `head.sane`, `maxp.counts` (hmtx, loca, CharStrings and post agree with numGlyphs), `cmap.usable` (a Windows Unicode subtable, existing glyphs, a space), `sfnt.checksums`, `os2.fstype`.
+- A file the font library cannot open used to disappear from the report (every check was "not applicable"). Checks that read only the file's bytes (`raw`) now run on it: `sfnt.header`, `sfnt.required_tables`, `sfnt.checksums`.
+- A damaged `hmtx` no longer stops the run while outline keys are computed.
+
 ## 0.8.1 — 2026-11-24
 
 - Fixed `glyphs.mark_widths`: spacing accents (breve, caron, circumflex, grave, macron, tilde, ring… U+02D8, U+02C7, U+0060…) were reported as combining marks only because GDEF lists them as marks. A GDEF mark that an ordinary character maps to is no longer reported. A glyph shared by a spacing and a combining character is still reported, now with the combining code point (e.g. `grave (U+0300) 216`).

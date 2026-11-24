@@ -65,9 +65,10 @@ class Check:
     applies: Optional[Callable] = None
     profiles: tuple = ("release",)
     requires: tuple = ()             # context inputs without which the check is "not performed"
+    raw: bool = False                # reads the file's bytes only, so it also runs on a file the font library cannot open
 
     def applicable(self, view):
-        return view.ok and (self.applies is None or self.applies(view))
+        return (view.ok or self.raw) and (self.applies is None or self.applies(view))
 
     @property
     def level(self):
@@ -100,6 +101,13 @@ PRESETS = {
                                  "names.family_consistent", "lineage.copies_agree", "vf.vs_static"],
                     "about": "checks that compare fonts with each other: character set, widths, vertical metrics, "
                              "family-wide names, copies in App/Desktop/Web, variable against static"},
+    "install": {"title": "Installs in the operating system",
+                "prefixes": ["sfnt.", "head.sane", "maxp.counts", "cmap.usable", "os2.fstype", "external.ots", "names.required", "names.postscript", "names.gdi_length", "names.mac_mirror",
+                             "names.unique", "names.version"],
+                "about": "the file is accepted and gets a usable name: sfnt header and directory, required tables, outline type, "
+                         "head, glyph counts, cmap, checksums, embedding bits, OTS, required name records, PostScript name, "
+                         "name length for Windows GDI, Windows and Mac names agree, unique names, version. Not the menu order, rendering "
+                         "or conflicts with fonts already installed"},
     "names": {"title": "Names", "prefixes": ["names.", "tables.meta"], "about": "name table and family naming"},
     "tables": {"title": "Table values", "prefixes": ["os2.", "post.", "tables.hinting"],
                "about": "OS/2, post and hinting values"},
@@ -175,7 +183,7 @@ def files_of(views):
 
 def load_all():
     """Import the check modules (registration happens on import)."""
-    from . import names, metrics, charset, outline, layout, external, release, variable, lineage  # noqa: F401
+    from . import names, metrics, charset, outline, layout, external, release, variable, lineage, install  # noqa: F401
     # registration order depends on which module was imported first (core.inspection imports
     # charset on its own); sort, so the terminal and the browser list the checks the same way
     REGISTRY.sort(key=lambda c: (c.category, c.id))
