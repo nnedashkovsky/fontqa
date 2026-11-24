@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.1 — 2026-11-24
+
+- Confirmed by installing: a font with `head.magicNumber` = 0 installs on both macOS and Windows. `docs/install-matrix.md` and the `head.sane` card say so; the check stays Harmless.
+
 ## 0.10.0 — 2026-11-24
 
 - New check `names.full_name_matches` (65 checks): name ID 4 is ID 16 + ID 17, or ID 1 + ID 2 when the font has no typographic names (the spec's own fallback). The word "Regular" may be left out, and the case or spacing may differ (Harmless); other words, another order or a missing family name need confirmation. ID 1 + ID 2 are not compared when ID 16/17 exist: the spec's examples differ there on purpose. Verdict function `full_name_verdict` with 15 cases in `tests/test_full_name.py`.

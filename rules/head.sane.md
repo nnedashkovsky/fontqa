@@ -26,7 +26,7 @@ The `head` table holds the font's global values. Three of them are validated by 
 
 A compiler never writes a wrong magic number, so a wrong one is a **trace of a hand edit**: someone patched the file's bytes instead of re-exporting, and other tables may be affected too. A scale outside the range makes every glyph, metric and position meaningless.
 
-Systems differ in how they react. The OpenType Sanitizer in Chrome and Firefox refuses the file, so a web font does not load. macOS (CoreText) registered a font with a zeroed magic number when tested, so a wrong magic number is reported as **Harmless**; a scale or `loca` format outside the valid range is not. See `docs/install-matrix.md`.
+Systems differ in how they react. The OpenType Sanitizer in Chrome and Firefox refuses the file, so a web font does not load. A font with a zeroed magic number was installed on both macOS and Windows when tested (2026-11-24), so a wrong magic number is reported as **Harmless**; a scale or `loca` format outside the valid range is not. See `docs/install-matrix.md`.
 
 ## How it is checked
 
