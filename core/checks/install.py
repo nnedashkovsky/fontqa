@@ -171,7 +171,7 @@ def outline_match(v):
        title="The head table has valid values",
        classification="Tables / head / Magic number, units per em, loca format",
        what="magicNumber is 0x5F0F3CF5, unitsPerEm is 16–16384, indexToLocFormat is 0 or 1",
-       basis="OpenType spec, head: parsers refuse a file whose magic number or scale is out of range.",
+       basis="OpenType spec, head: strict parsers (OTS) refuse a file whose magic number or scale is out of range; a wrong magic number means the table was edited outside the compiler.",
        fix="Export again; set unitsPerEm to 1000 or 2048.", severity="high",
        symptoms=("Windows, macOS: the font does not install",))
 def head_sane(v):

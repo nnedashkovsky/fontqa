@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1 — 2026-11-24
+
+- `head.sane` rule card: a wrong magic number is a trace of a hand edit, not a common fault; it is refused by OTS but registered by macOS CoreText (tested), so the card no longer says that systems refuse it. Example with a checksum written at the wrong offset.
+
 ## 0.9.0 — 2026-11-24
 
 - New preset **Installs in the operating system** (Engineer level): only what decides whether a file is accepted and named — the container, required tables, outline type, glyph counts, cmap, checksums, embedding bits, OTS and the name records. Not menu order, rendering or conflicts with installed fonts.

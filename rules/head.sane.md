@@ -24,7 +24,9 @@ The `head` table holds the font's global values. Three of them are validated by 
 
 ## Why it matters
 
-A wrong magic number means the table is not a `head` table; a scale outside the range makes every glyph, metric and position meaningless. Parsers refuse such a file, so the font does not install.
+A compiler never writes a wrong magic number, so a wrong one is a **trace of a hand edit**: someone patched the file's bytes instead of re-exporting, and other tables may be affected too. A scale outside the range makes every glyph, metric and position meaningless.
+
+Systems differ in how they react. Strict parsers — the OpenType Sanitizer in Chrome and Firefox — refuse the file, so a web font does not load. macOS (CoreText) registered a font with a zeroed magic number without complaint when tested, so "the system accepts it" does not mean the file is sound.
 
 ## How it is checked
 
@@ -38,9 +40,13 @@ The three values are read from `head` and compared with the table above; each wr
 
 Export again; set the units per em to 1000 (or 2048) in the source. If a hand edit changed the table, restore it from a compiled font.
 
+The `head` table starts with its version (bytes 0–3), `fontRevision` (4–7), `checkSumAdjustment` (8–11) and `magicNumber` (12–15). A script that recomputes the file checksum and writes it **4 bytes too far** overwrites the magic number; the same script written correctly leaves it alone.
+
 ## Example
 
-| unitsPerEm | Verdict |
+| Case | Verdict |
 |---|---|
-| 1000, 2048 | good |
-| 8 | bad: below the minimum of 16 |
+| unitsPerEm 1000 or 2048 | good |
+| unitsPerEm 8 | bad: below the minimum of 16 |
+| magicNumber `0x5F0F3CF5` | good |
+| magicNumber `0x00000000`, after a script wrote the checksum at byte 12 instead of byte 8 | bad: the table was edited outside the compiler; check the other tables too |
