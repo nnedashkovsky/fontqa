@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.2 — 2026-11-24
+
+- Tested on macOS and Windows: a font with a wrong table checksum, and one with a zeroed `head.magicNumber`, both install. `sfnt.checksums` is now **Harmless** (low), and a wrong magic number in `head.sane` is reported as Harmless; `head.sane` no longer predicts "does not install". Cards updated. Units per em and the loca format stay faults.
+
 ## 0.9.1 — 2026-11-24
 
 - `head.sane` rule card: a wrong magic number is a trace of a hand edit, not a common fault; it is refused by OTS but registered by macOS CoreText (tested), so the card no longer says that systems refuse it. Example with a checksum written at the wrong offset.

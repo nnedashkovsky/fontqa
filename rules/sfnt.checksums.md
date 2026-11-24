@@ -4,8 +4,8 @@ title: Table checksums are correct
 summary: Every table matches the checksum in the directory, and head.checkSumAdjustment matches the whole file.
 category: A
 level: engineer
-severity: medium
-action: fix
+severity: low
+action: ok
 applies: TTF and OTF files, including files the font library cannot open.
 related: sfnt.header, external.ots
 sources:
@@ -18,7 +18,9 @@ Each table in the directory has a checksum: the sum of its bytes read as 32-bit 
 
 ## Why it matters
 
-A checksum that no longer matches means the table was changed after the font was saved: by a hand edit, a script that patched a table without re-saving the font, or a damaged copy. macOS Font Book and font validators check them and mark the font as having validation errors; Windows usually ignores them, so the same file may install on one system and not on another.
+A checksum that no longer matches means the table was changed after the font was saved: by a hand edit, a script that patched a table without re-saving the font, or a damaged copy. Font validators report it.
+
+It does **not** stop the font from installing: a font with a wrong table checksum was installed on both macOS and Windows when tested, so this is reported as **Harmless**. What it tells you is that the file was edited outside the compiler, and that the edit itself deserves a look.
 
 ## How it is checked
 

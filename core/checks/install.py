@@ -172,14 +172,14 @@ def outline_match(v):
        classification="Tables / head / Magic number, units per em, loca format",
        what="magicNumber is 0x5F0F3CF5, unitsPerEm is 16–16384, indexToLocFormat is 0 or 1",
        basis="OpenType spec, head: strict parsers (OTS) refuse a file whose magic number or scale is out of range; a wrong magic number means the table was edited outside the compiler.",
-       fix="Export again; set unitsPerEm to 1000 or 2048.", severity="high",
-       symptoms=("Windows, macOS: the font does not install",))
+       fix="Export again; set unitsPerEm to 1000 or 2048.", severity="high")
 def head_sane(v):
     if "head" not in tags_of(v):
         return
     head = v.font["head"]
     if head.magicNumber != 0x5F0F3CF5:
-        yield Hit(key="magic number", measured=hex(head.magicNumber), expected="0x5f0f3cf5", summary=f"head magicNumber is {hex(head.magicNumber)}")
+        yield Hit(key="magic number", measured=hex(head.magicNumber), expected="0x5f0f3cf5", action="ok", severity="low",
+                  summary=f"head magicNumber is {hex(head.magicNumber)}")
     if not 16 <= head.unitsPerEm <= 16384:
         yield Hit(key="units per em", measured=str(head.unitsPerEm), expected="16–16384", summary=f"unitsPerEm {head.unitsPerEm} is out of range")
     if head.indexToLocFormat not in (0, 1):
@@ -276,8 +276,8 @@ def checksum(data):
        title="Table checksums are correct",
        classification="Container / sfnt / Checksums",
        what="every table matches the checksum in the directory, and head.checkSumAdjustment matches the whole file",
-       basis="macOS Font Book and font validators verify checksums; a table edited after export fails them.",
-       fix="Re-save the font with the compiler, which recomputes the checksums.", severity="medium")
+       basis="Font validators verify checksums; a table edited after export fails them. macOS and Windows install such a font all the same (tested).",
+       fix="Re-save the font with the compiler, which recomputes the checksums.", severity="low", action="ok")
 def checksums(v):
     d = directory(v)
     if not d:
