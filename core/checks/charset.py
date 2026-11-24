@@ -176,13 +176,26 @@ def spaces(v):
        symptoms=("All applications: decomposed accents (base + combining mark) leave a gap after the letter",))
 def mark_widths(v):
     w = v.widths
-    marks = {name for cp, name in v.cmap.items() if unicodedata.category(chr(cp)) == "Mn"}
+    # a glyph is a combining mark if a nonspacing (Mn) character maps to it, or if GDEF says so and no
+    # ordinary character does: breve, caron, grave… (U+02D8, U+02C7, U+0060) are spacing accents, typed alone, and keep their width
+    mn, spacing = {}, set()
+    for cp, name in v.cmap.items():
+        if unicodedata.category(chr(cp)) == "Mn":
+            mn.setdefault(name, cp)
+        else:
+            spacing.add(name)
+    marks = dict(mn)
     if "GDEF" in v.font and v.font["GDEF"].table.GlyphClassDef:
-        marks |= {g for g, c in v.font["GDEF"].table.GlyphClassDef.classDefs.items() if c == 3}
+        for g, c in v.font["GDEF"].table.GlyphClassDef.classDefs.items():
+            if c == 3 and g not in spacing:
+                marks.setdefault(g, None)
     wide = sorted(g for g in marks if w.get(g, 0) != 0)
     if wide:
+        def label(g):  # the combining code point that points at the glyph, not the first one it is mapped to
+            cp = marks[g]
+            return f"{g} (U+{cp:04X})" if cp else g
         yield Hit(key="marks with width", measured=f"{len(wide)} marks", expected="width 0",
-                  glyphs=[f"{glyph_label(v, g)} {w[g]}" for g in wide],
+                  glyphs=[f"{label(g)} {w[g]}" for g in wide],
                   summary=f"{len(wide)} combining marks have a non-zero width")
 
 

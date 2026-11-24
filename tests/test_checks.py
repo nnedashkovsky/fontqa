@@ -594,3 +594,22 @@ def test_built_site_loads_in_one_request_and_has_what_the_page_installs(tmp_path
     assert set(wheels) == {"openpyxl", "munkres"}
     assert all((tmp_path / "wheels" / f).exists() for names in wheels.values() for f in names)
     assert (tmp_path / "wheels" / wheels["munkres"][0]).stat().st_size > 1000
+
+
+def test_spacing_accents_marked_in_gdef_keep_their_width(tmp_path):
+    """breve, caron… are GDEF marks in many sources but are typed alone: not a combining mark."""
+    def gdef_marks(font):
+        from fontTools.ttLib import newTable
+        from fontTools import ttLib
+        from fontTools.ttLib.tables import otTables as ot
+        cmap = font.getBestCmap()
+        gdef = newTable("GDEF")
+        gdef.table = ot.GDEF()
+        gdef.table.Version = 1.0
+        gdef.table.GlyphClassDef = ot.GlyphClassDef()
+        gdef.table.GlyphClassDef.classDefs = {cmap[0x2D8]: 3, cmap[0x301]: 3}
+        for n in ("AttachList", "LigCaretList", "MarkAttachClassDef"):
+            setattr(gdef.table, n, None)
+        font["GDEF"] = gdef
+    features_font(tmp_path, chars=W + [0x301, 0x2D8], widths={0x301: 0, 0x2D8: 327}, mutate=gdef_marks)
+    assert not [i for i in inspect(tmp_path, only=["glyphs.mark_widths"])["issues"] if i["check"] == "glyphs.mark_widths"]

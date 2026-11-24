@@ -23,8 +23,11 @@ Text in Vietnamese, Lithuanian, transliteration and many web sources writes acce
 
 ## How it is checked
 
-1. Marks are collected from two places: characters whose Unicode category is Mn (nonspacing mark), and glyphs that GDEF classifies as marks (class 3).
-2. Every mark with a width other than 0 is reported, with its width.
+1. Marks are collected from two places: glyphs that a nonspacing character (Unicode category Mn, U+0300–U+036F and others) maps to, and glyphs that GDEF classifies as marks (class 3).
+2. A GDEF mark that an ordinary character also maps to is **not** reported: the spacing accents breve, caron, circumflex, grave, macron, tilde (U+02D8, U+02C7, U+02C6, U+0060, U+00AF, U+02DC…) are typed on their own and keep their width.
+3. Every mark with a width other than 0 is reported, with its width and the combining code point.
+
+A glyph shared by a spacing and a combining character (one `grave` for both U+0060 and U+0300) is reported, because the combining use then leaves a gap; the fix is a separate zero-width `gravecomb`.
 
 ## When it does not apply
 

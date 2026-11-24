@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1 — 2026-11-24
+
+- Fixed `glyphs.mark_widths`: spacing accents (breve, caron, circumflex, grave, macron, tilde, ring… U+02D8, U+02C7, U+0060…) were reported as combining marks only because GDEF lists them as marks. A GDEF mark that an ordinary character maps to is no longer reported. A glyph shared by a spacing and a combining character is still reported, now with the combining code point (e.g. `grave (U+0300) 216`).
+
 ## 0.8.0 — 2026-11-18
 
 Speed. Measured with `tests/perf.py` in headless Chromium (CDNs are the real ones).
